@@ -1,26 +1,24 @@
 import time
-import urllib.parse
 import xml.etree.ElementTree as ET
 
 import requests
 
-BASE_URL = "http://openapi.foodsafetykorea.go.kr/api"
+BASE_URL = "https://openapi.foodsafetykorea.go.kr/api"
 PAGE_SIZE = 1000
 
-HEALTH_SERVICE = "건강기능식품 품목제조신고(원재료)"
-GENERAL_SERVICE = "식품(첨가물)품목제조보고"
+HEALTH_SERVICE  = "C003"   # 건강기능식품 품목제조신고(원재료)
+GENERAL_SERVICE = "C006"   # 식품(첨가물)품목제조보고
 
-# API 필드명 → 엑셀 컬럼명
 HEALTH_FIELD_MAP = {
     'PRDLST_REPORT_NO': '품목제조번호',
     'PRMS_DT':          '보고일자',
-    'PRDLST_DCNM':      '제품형태',
-    'LSTUPD_DTM':       '최종생성일시',
+    'PRDT_SHAP_CD_NM':  '제품형태',
+    'LAST_UPDT_DTM':    '최종생성일시',
     'PRDLST_NM':        '품목명',
     'BSSH_NM':          '업소명',
-    'FNCLTY_CN':        '주된기능성',
+    'PRIMARY_FNCLTY':   '주된기능성',
     'POG_DAYCNT':       '소비기한',
-    'INTAKE_HINT1':     '섭취방법',
+    'NTK_MTHD':         '섭취방법',
     'RAWMTRL_NM':       '원재료',
 }
 
@@ -37,26 +35,36 @@ GENERAL_FIELD_MAP = {
 
 
 def _build_url(api_key: str, service: str, start: int, end: int, date_filter: str) -> str:
-    encoded = urllib.parse.quote(service, safe='')
-    return f"{BASE_URL}/{api_key}/{encoded}/xml/{start}/{end}/PRMS_DT={date_filter}"
+    return f"{BASE_URL}/{api_key}/{service}/xml/{start}/{end}/PRMS_DT={date_filter}"
 
 
 def _parse_xml(xml_text: str, field_map: dict) -> tuple[int, list[dict]]:
     try:
         root = ET.fromstring(xml_text.encode('utf-8'))
     except ET.ParseError:
-        # 일부 응답이 BOM 포함 시 처리
         root = ET.fromstring(xml_text.encode('utf-8-sig'))
 
+    # 인증키 오류 감지 (JavaScript alert 응답)
+    if xml_text.strip().startswith('<script'):
+        raise RuntimeError("API 인증키 오류: 서비스 코드를 사용할 권한이 없습니다.")
+
+    # RESULT 형식 (신규)
+    result = root.find('RESULT')
+    if result is not None:
+        code = result.findtext('CODE', 'INFO-000').strip()
+        if not code.startswith('INFO'):
+            msg = result.findtext('MSG', '')
+            raise RuntimeError(f"API 오류 [{code}]: {msg}")
+
+    # header 형식 (구형 호환)
     header = root.find('header')
     if header is not None:
-        code = header.findtext('resultCode', '').strip()
+        code = header.findtext('resultCode', '00').strip()
         if code not in ('00', '0'):
             msg = header.findtext('resultMsg', '')
             raise RuntimeError(f"API 오류 [{code}]: {msg}")
-        total = int(header.findtext('total_count', '0') or '0')
-    else:
-        total = 0
+
+    total = int(root.findtext('total_count', '0') or '0')
 
     rows = []
     for row_el in root.findall('.//row'):
@@ -73,6 +81,7 @@ def _fetch_all(api_key: str, service: str, field_map: dict, year: int, month: in
     start = 1
 
     session = requests.Session()
+    session.headers.update({"User-Agent": "Mozilla/5.0"})
 
     while True:
         end = start + PAGE_SIZE - 1
@@ -103,7 +112,6 @@ def _fetch_all(api_key: str, service: str, field_map: dict, year: int, month: in
         start = end + 1
         time.sleep(0.3)
 
-    # 클라이언트 측 월 필터 (이중 확인)
     date_col = '보고일자'
     filtered = [r for r in all_rows if r.get(date_col, '').startswith(date_filter)]
     return filtered if filtered else all_rows
@@ -114,4 +122,9 @@ def fetch_health_food(api_key: str, year: int, month: int) -> list[dict]:
 
 
 def fetch_general_food(api_key: str, year: int, month: int) -> list[dict]:
-    return _fetch_all(api_key, GENERAL_SERVICE, GENERAL_FIELD_MAP, year, month)
+    try:
+        return _fetch_all(api_key, GENERAL_SERVICE, GENERAL_FIELD_MAP, year, month)
+    except RuntimeError as e:
+        print(f"  [경고] 일반식품 수집 실패: {e}")
+        print("  [안내] 식품안전나라 포털에서 C006 서비스 키 활성화 확인 필요")
+        return []
