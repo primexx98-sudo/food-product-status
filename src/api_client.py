@@ -22,6 +22,12 @@ HEALTH_FIELD_MAP = {
     'RAWMTRL_NM':       '원재료',
 }
 
+# v2 데이터 기준 포함 제품형태 (건강기능성 관련 카테고리만)
+GENERAL_ALLOWED_TYPES = {
+    '기타가공품', '과.채가공품', '액상차', '당류가공품', '고형차',
+    '캔디류', '과.채주스', '효소식품', '발효식초', '올리브유',
+}
+
 GENERAL_FIELD_MAP = {
     'PRDLST_REPORT_NO': '품목제조번호',
     'PRMS_DT':          '보고일자',
@@ -147,4 +153,6 @@ def fetch_general_food(api_key: str, year: int, month: int) -> list[dict]:
             if new_raw and new_raw not in existing_raw:
                 merged[key]['원재료명'] = f"{existing_raw}, {new_raw}".strip(', ')
 
-    return list(merged.values())
+    # v2와 동일한 제품형태 필터 적용
+    result = [r for r in merged.values() if r.get('제품형태', '') in GENERAL_ALLOWED_TYPES]
+    return result
