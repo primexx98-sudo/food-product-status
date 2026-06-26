@@ -7,7 +7,7 @@ BASE_URL = "https://openapi.foodsafetykorea.go.kr/api"
 PAGE_SIZE = 1000
 
 HEALTH_SERVICE  = "C003"   # 건강기능식품 품목제조신고(원재료)
-GENERAL_SERVICE = "C006"   # 식품(첨가물)품목제조보고
+GENERAL_SERVICE = "C002"   # 식품(첨가물)품목제조보고
 
 HEALTH_FIELD_MAP = {
     'PRDLST_REPORT_NO': '품목제조번호',
@@ -98,7 +98,13 @@ def _fetch_all(api_key: str, service: str, field_map: dict, year: int, month: in
                 print(f"  재시도 {attempt + 1}/3: {e}")
                 time.sleep(2)
 
-        total, rows = _parse_xml(resp.text, field_map)
+        try:
+            total, rows = _parse_xml(resp.text, field_map)
+        except RuntimeError as e:
+            if all_rows:
+                print(f"  [경고] {service}: 쿼터 초과, {len(all_rows)}건까지만 수집됨")
+                break
+            raise
 
         if not rows:
             break
@@ -110,7 +116,7 @@ def _fetch_all(api_key: str, service: str, field_map: dict, year: int, month: in
             break
 
         start = end + 1
-        time.sleep(0.3)
+        time.sleep(1.0)
 
     date_col = '보고일자'
     filtered = [r for r in all_rows if r.get(date_col, '').startswith(date_filter)]
@@ -123,8 +129,22 @@ def fetch_health_food(api_key: str, year: int, month: int) -> list[dict]:
 
 def fetch_general_food(api_key: str, year: int, month: int) -> list[dict]:
     try:
-        return _fetch_all(api_key, GENERAL_SERVICE, GENERAL_FIELD_MAP, year, month)
+        rows = _fetch_all(api_key, GENERAL_SERVICE, GENERAL_FIELD_MAP, year, month)
     except RuntimeError as e:
         print(f"  [경고] 일반식품 수집 실패: {e}")
-        print("  [안내] 식품안전나라 포털에서 C006 서비스 키 활성화 확인 필요")
+        print("  [안내] 식품안전나라 포털에서 C002 서비스 키 활성화 확인 필요")
         return []
+
+    # C002는 원재료 1개당 행 1개 → 품목제조번호 기준으로 합산
+    merged: dict[str, dict] = {}
+    for row in rows:
+        key = row.get('품목제조번호', '')
+        if key not in merged:
+            merged[key] = row.copy()
+        else:
+            existing_raw = merged[key].get('원재료명', '')
+            new_raw = row.get('원재료명', '')
+            if new_raw and new_raw not in existing_raw:
+                merged[key]['원재료명'] = f"{existing_raw}, {new_raw}".strip(', ')
+
+    return list(merged.values())
