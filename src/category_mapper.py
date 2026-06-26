@@ -166,8 +166,35 @@ def categorize_health_food(fnclty_cn: str, product_name: str = '', raw_material:
 
 
 def categorize_general_food(product_name: str, raw_material: str = '') -> str:
-    result = _match_text(str(product_name or ''), _GENERAL_MAP)
+    name = str(product_name or '')
+    raw  = str(raw_material or '')
+
+    # 규칙 1·2: 맥주효모 또는 (효모+비오틴) → 모발
+    if '맥주효모' in name or '맥주효모' in raw:
+        return '모발'
+    if '효모' in raw and '비오틴' in raw:
+        return '모발'
+
+    # 규칙 4: 이노시톨 계열 → 여성건강
+    if any(kw in name for kw in ('이노시톨', '콜린미오', '콜린미오이노시톨', '미오이노시톨콜린')):
+        return '여성건강'
+
+    # 규칙 5: 파우더 → 기타
+    if '파우더' in name:
+        return '기타'
+
+    # 규칙 3·6: 오분류 유발 원재료명 마스킹 후 매칭
+    # - '효소처리스테비아' → '효소' 키워드 오매칭 방지
+    # - '피로인산제일철'   → '피로' 키워드 오매칭 방지
+    _MASK = ('효소처리스테비아', '피로인산제일철')
+    name_c = name
+    raw_c  = raw
+    for m in _MASK:
+        name_c = name_c.replace(m, '')
+        raw_c  = raw_c.replace(m, '')
+
+    result = _match_text(name_c, _GENERAL_MAP)
     if result:
         return result
-    result = _match_text(str(raw_material or ''), _GENERAL_MAP)
+    result = _match_text(raw_c, _GENERAL_MAP)
     return result if result else '기타'
