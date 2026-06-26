@@ -150,7 +150,7 @@ def _write_dashboard(ws, output_dir: str, year: int,
 
     # 건강기능식품 테이블: rows 1~14 (title + header + 12 months)
     general_start = 1 + 14 + 2  # = 17
-    _write_summary_table(ws, '일반식품 품목제조신고 현황 - 기능성 별',
+    _write_summary_table(ws, '일반식품 품목제조보고 현황 - 기능성 별',
                          monthly_g, GENERAL_CAT_LIST, row_start=general_start)
 
     # 컬럼 너비 조정
