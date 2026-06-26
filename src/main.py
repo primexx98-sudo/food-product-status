@@ -20,7 +20,11 @@ def main():
     print("건강기능식품 수집 중...")
     health_data = fetch_health_food(api_key, year, month)
     for item in health_data:
-        item['카테고리'] = categorize_health_food(item.get('주된기능성', ''))
+        item['카테고리'] = categorize_health_food(
+            item.get('주된기능성', ''),
+            item.get('품목명', ''),
+            item.get('원재료', ''),
+        )
     print(f"  건강기능식품: {len(health_data)}건")
 
     print("일반식품 수집 중...")
