@@ -5,7 +5,7 @@ from datetime import datetime
 import requests
 
 from api_client import fetch_health_food, fetch_general_food
-from category_mapper import categorize_health_food, categorize_general_food
+from category_mapper import categorize_health_food, categorize_general_food, is_general_excluded
 from excel_writer import write_excel
 
 
@@ -35,6 +35,7 @@ def main():
 
     print("일반식품 수집 중...")
     general_data = fetch_general_food(api_key, year, month)
+    general_data = [r for r in general_data if not is_general_excluded(r.get('품목명', ''))]
     for item in general_data:
         item['카테고리'] = categorize_general_food(
             item.get('품목명', ''), item.get('원재료명', '')
