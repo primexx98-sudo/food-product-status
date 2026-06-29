@@ -93,16 +93,17 @@ def _fetch_all(api_key: str, service: str, field_map: dict, year: int, month: in
         end = start + PAGE_SIZE - 1
         url = _build_url(api_key, service, start, end, date_filter)
 
-        for attempt in range(3):
+        for attempt in range(5):
             try:
-                resp = session.get(url, timeout=30)
+                resp = session.get(url, timeout=60)
                 resp.raise_for_status()
                 break
             except requests.RequestException as e:
-                if attempt == 2:
+                if attempt == 4:
                     raise
-                print(f"  재시도 {attempt + 1}/3: {e}")
-                time.sleep(2)
+                wait = 2 ** attempt  # 1, 2, 4, 8초 지수 백오프
+                print(f"  재시도 {attempt + 1}/5 ({wait}초 대기): {e}")
+                time.sleep(wait)
 
         try:
             total, rows = _parse_xml(resp.text, field_map)

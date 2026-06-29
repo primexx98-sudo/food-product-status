@@ -2,6 +2,8 @@ import os
 import sys
 from datetime import datetime
 
+import requests
+
 from api_client import fetch_health_food, fetch_general_food
 from category_mapper import categorize_health_food, categorize_general_food
 from excel_writer import write_excel
@@ -18,7 +20,11 @@ def main():
     print(f"[{year}-{month:02d}] 데이터 수집 시작")
 
     print("건강기능식품 수집 중...")
-    health_data = fetch_health_food(api_key, year, month)
+    try:
+        health_data = fetch_health_food(api_key, year, month)
+    except requests.exceptions.RequestException as e:
+        print(f"  [건너뜀] API 서버 연결 실패, 오늘 수집을 건너뜁니다: {e}")
+        sys.exit(0)
     for item in health_data:
         item['카테고리'] = categorize_health_food(
             item.get('주된기능성', ''),
