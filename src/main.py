@@ -22,8 +22,18 @@ def main():
     print("건강기능식품 수집 중...")
     try:
         health_data = fetch_health_food(api_key, year, month)
+    except requests.exceptions.HTTPError as e:
+        status = e.response.status_code
+        if status == 403:
+            print("  [건너뜀] HTTP 403 — 해외 IP 차단. GitHub Actions에서는 수집 불가.")
+        else:
+            print(f"  [건너뜀] HTTP {status} 오류. 오늘 수집을 건너뜁니다.")
+        sys.exit(0)
+    except requests.exceptions.Timeout:
+        print("  [건너뜀] 타임아웃 — 일시적 장애 또는 IP 차단. 내일 재시도합니다.")
+        sys.exit(0)
     except requests.exceptions.RequestException as e:
-        print(f"  [건너뜀] API 서버 연결 실패, 오늘 수집을 건너뜁니다: {e}")
+        print(f"  [건너뜀] 연결 실패 ({type(e).__name__}): {e}")
         sys.exit(0)
     for item in health_data:
         item['카테고리'] = categorize_health_food(

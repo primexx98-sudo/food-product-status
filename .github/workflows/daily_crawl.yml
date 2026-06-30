@@ -5,6 +5,9 @@ on:
     - cron: '0 1 * * *'  # 매일 01:00 UTC = 10:00 KST
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   collect:
     runs-on: ubuntu-latest
@@ -20,6 +23,20 @@ jobs:
 
       - name: 패키지 설치
         run: pip install -r requirements.txt
+
+      - name: API 접근 가능 여부 진단
+        run: |
+          echo "=== 식품안전나라 API 연결 진단 ==="
+          HTTP=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 15 \
+            "https://openapi.foodsafetykorea.go.kr/" 2>/dev/null || echo "000")
+          echo "HTTP 상태코드: $HTTP"
+          if   [ "$HTTP" = "000" ]; then echo "[진단] 연결 실패 — DNS 오류 또는 방화벽 차단"
+          elif [ "$HTTP" = "403" ]; then echo "[진단] HTTP 403 — 해외 IP 차단 확인됨"
+          elif [ "$HTTP" = "200" ] || [ "$HTTP" = "301" ] || [ "$HTTP" = "302" ]; then
+            echo "[진단] HTTP $HTTP — 접근 가능"
+          else
+            echo "[진단] HTTP $HTTP — 예상 외 상태"
+          fi
 
       - name: 데이터 수집 및 엑셀 생성
         env:

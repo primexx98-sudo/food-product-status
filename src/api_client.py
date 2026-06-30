@@ -98,11 +98,29 @@ def _fetch_all(api_key: str, service: str, field_map: dict, year: int, month: in
                 resp = session.get(url, timeout=60)
                 resp.raise_for_status()
                 break
-            except requests.RequestException as e:
+            except requests.exceptions.HTTPError as e:
+                status = e.response.status_code
+                print(f"  [HTTP {status}] {url}")
+                if status in (403, 401):
+                    raise  # IP 차단이면 재시도해도 의미 없음
                 if attempt == 4:
                     raise
-                wait = 2 ** attempt  # 1, 2, 4, 8초 지수 백오프
-                print(f"  재시도 {attempt + 1}/5 ({wait}초 대기): {e}")
+                wait = 2 ** attempt
+                print(f"  재시도 {attempt + 1}/5 ({wait}초 대기)")
+                time.sleep(wait)
+            except requests.exceptions.Timeout:
+                print(f"  [타임아웃] 연결 시간 초과 ({url[:60]}...)")
+                if attempt == 4:
+                    raise
+                wait = 2 ** attempt
+                print(f"  재시도 {attempt + 1}/5 ({wait}초 대기)")
+                time.sleep(wait)
+            except requests.exceptions.RequestException as e:
+                print(f"  [연결오류] {type(e).__name__}: {e}")
+                if attempt == 4:
+                    raise
+                wait = 2 ** attempt
+                print(f"  재시도 {attempt + 1}/5 ({wait}초 대기)")
                 time.sleep(wait)
 
         try:
