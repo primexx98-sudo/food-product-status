@@ -35,6 +35,11 @@ def main():
     except requests.exceptions.RequestException as e:
         print(f"  [건너뜀] 연결 실패 ({type(e).__name__}): {e}")
         sys.exit(0)
+    except RuntimeError as e:
+        print(f"  [오류] API 응답 오류: {e}")
+        print("  → 인증키 만료·쿼터 소진·서버 장애 중 하나일 수 있습니다.")
+        print("  → 식품안전나라 포털에서 인증키 상태를 확인하세요.")
+        sys.exit(1)
     for item in health_data:
         item['카테고리'] = categorize_health_food(
             item.get('주된기능성', ''),
@@ -46,6 +51,7 @@ def main():
     print("일반식품 수집 중...")
     general_data = fetch_general_food(api_key, year, month)
     general_data = [r for r in general_data if not is_general_excluded(r.get('품목명', ''))]
+    general_data.sort(key=lambda x: str(x.get('보고일자', '') or ''))
     for item in general_data:
         item['카테고리'] = categorize_general_food(
             item.get('품목명', ''), item.get('원재료명', '')

@@ -99,29 +99,22 @@ def _fetch_all(api_key: str, service: str, field_map: dict, year: int, month: in
                 resp.raise_for_status()
                 break
             except requests.exceptions.HTTPError as e:
-                status = e.response.status_code
-                print(f"  [HTTP {status}] {url}")
-                if status in (403, 401):
-                    raise  # IP 차단이면 재시도해도 의미 없음
+                if e.response.status_code in (403, 401):
+                    raise
+                print(f"  [HTTP {e.response.status_code}] {url}")
                 if attempt == 4:
                     raise
-                wait = 2 ** attempt
-                print(f"  재시도 {attempt + 1}/5 ({wait}초 대기)")
-                time.sleep(wait)
             except requests.exceptions.Timeout:
-                print(f"  [타임아웃] 연결 시간 초과 ({url[:60]}...)")
+                print(f"  [타임아웃] {url[:60]}...")
                 if attempt == 4:
                     raise
-                wait = 2 ** attempt
-                print(f"  재시도 {attempt + 1}/5 ({wait}초 대기)")
-                time.sleep(wait)
             except requests.exceptions.RequestException as e:
                 print(f"  [연결오류] {type(e).__name__}: {e}")
                 if attempt == 4:
                     raise
-                wait = 2 ** attempt
-                print(f"  재시도 {attempt + 1}/5 ({wait}초 대기)")
-                time.sleep(wait)
+            wait = 2 ** attempt
+            print(f"  재시도 {attempt + 1}/5 ({wait}초 대기)")
+            time.sleep(wait)
 
         try:
             total, rows = _parse_xml(resp.text, field_map)
