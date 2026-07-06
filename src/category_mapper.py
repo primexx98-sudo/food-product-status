@@ -85,7 +85,8 @@ _MULTIPACK_NAME_KEYWORDS = [
 ]
 
 _BONE_TEXT_KWS = ('뼈와 치아', '골밀도', '골형성', '뼈건강', '골다공')
-_GENERAL_MASK  = ('효소처리스테비아', '피로인산제일철', '마카다미아')
+_GENERAL_MASK  = ('효소처리스테비아', '피로인산제일철', '피로인산나트륨',
+                  '산성피로인산나트륨', '피로인산제이철', '마카다미아')
 
 _GENERAL_MAP = [
     # '피부'는 목록 최상위 — 품목명에 콜라겐/PDRN 등 뷰티 브랜딩이 명시되면 다른 카테고리보다 우선
@@ -143,14 +144,54 @@ _GENERAL_EXCLUDE_SUFFIXES = ('청', '소스', '양념', '드레싱', '나물')
 
 # 품목명 어디에 있어도 제외 (코드/식별자가 붙는 B2B 원료·반제품·시즈닝류)
 # '그레인'은 제외하지 않음 — '파라다이스그레인' 등 실제 효소식품 브랜드 존재
-_GENERAL_EXCLUDE_CONTAINS = ('시즈닝', '씨즈닝', '베이스', '반제품', '조미액', '조미분')
+_GENERAL_EXCLUDE_CONTAINS = (
+    '시즈닝', '씨즈닝', '베이스', '반제품', '조미액', '조미분',
+    # 2026-06 사용자 삭제 검토 반영 (냉동조리식품·파티장식품 등 건강기능과 무관한 품목군)
+    '짜조', '알탕', '알곤이찜', '양각', '촛불', '솜사탕', '육수',
+)
+
+# 상표명 코드 + 믹스/프리믹스/베이스 + 배치번호 형태의 B2B 프리믹스 제품
+# 예: DZ프리믹스33, WK믹스22, SU믹스4 — 식자재 유통용 코드 제품명 패턴
+_GENERAL_EXCLUDE_CODE_MIX_RE = re.compile(r'^[A-Z]{2,4}(믹스|프리믹스|베이스)\d+$')
+
+# 영문 괄호 표기가 Blend/Base/Mix/Complex 등으로 시작하는 B2B 프리미엄 원료 제품
+# 예: "블렌드 밀크 베이스(Blend Milk Base)", "크런치 그레인 믹스(Crunch Grain Mix)"
+_GENERAL_EXCLUDE_EN_PAREN_RE = re.compile(
+    r'\((Blend|Base|Mix|Complex|Oat-Mix|Crunch|Crunchy)[^)]*\)', re.IGNORECASE
+)
+
+# 2026-06 사용자 삭제 검토분 중 이름 패턴으로 일반화하기 어려운 개별 품목
+# (동일/유사 이름의 다른 품목은 그대로 유지되어 품목제조번호로 정확히 지정)
+_GENERAL_EXCLUDE_REPORT_NOS = {
+    '199304430282798', '199304430282797', '199304430282799', '19960188088970',
+    '200004430423949', '200004613259296', '200004613259255', '200201832821533',
+    '20030275225478', '20040445063592', '200504490252153', '200504490252173',
+    '200504641271515', '20060449025154', '20060449025155', '20060449025151',
+    '200703553072003', '200703553072004', '20070275085505', '200703385311273',
+    '200703385311272', '20080332594182', '20080360405134', '20080464214788',
+    '20080464214789', '20080464214791', '2009018806035', '2009018806034',
+    '20090257112819', '2009048738050', '20100275132163', '20100368548312',
+    '20110360063510', '20110360063527', '201102571531686', '20110304511484',
+    '20110304511483', '20150320417948', '20150320417949', '20150320417950',
+    '20150320417951', '20150415098727', '2019024309052', '2020007076377',
+    '2020007076381', '2020007076384', '2020007076390', '20200531137230',
+    '20200531137228', '20200531137229', '20200363209326', '20200363209322',
+    '2020032368020', '20210562014881', '20210485323124', '20210485323134',
+    '20210485323125', '20210358313171', '2022049392027', '2022049392026',
+}
 
 
-def is_general_excluded(product_name: str) -> bool:
+def is_general_excluded(product_name: str, report_no: str = '') -> bool:
     name = str(product_name or '').strip()
+    if str(report_no or '') in _GENERAL_EXCLUDE_REPORT_NOS:
+        return True
     if any(name.endswith(s) for s in _GENERAL_EXCLUDE_SUFFIXES):
         return True
-    return any(kw in name for kw in _GENERAL_EXCLUDE_CONTAINS)
+    if any(kw in name for kw in _GENERAL_EXCLUDE_CONTAINS):
+        return True
+    if _GENERAL_EXCLUDE_CODE_MIX_RE.match(name):
+        return True
+    return bool(_GENERAL_EXCLUDE_EN_PAREN_RE.search(name))
 
 
 def _extract_bracket_items(text: str) -> list[str]:
@@ -175,6 +216,20 @@ def _match_text(text: str, keyword_map: list) -> str | None:
             if kw.lower() in t_lower:
                 return cat
     return None
+
+
+def _strip_flavor_tokens(raw_material: str) -> str:
+    """원재료명 토큰 중 향료류(실제 원료가 아닌 향 첨가물) 제거.
+
+    '블루베리향'/'블루베리향분말'처럼 향료명이 실제 원료명과 우연히 겹쳐
+    항산화 등 카테고리에 오매칭되는 문제 방지 (2026-07 피로개선/항산화 검토에서 발견).
+    """
+    tokens = re.split(r'[,]+', raw_material)
+    kept = [
+        t for t in tokens
+        if not ('향료' in t or t.strip().endswith(('향', '향분말', '향추출물', '향제제')))
+    ]
+    return ','.join(kept)
 
 
 def categorize_health_food(fnclty_cn: str, product_name: str = '', raw_material: str = '') -> str:
@@ -219,9 +274,53 @@ def categorize_health_food(fnclty_cn: str, product_name: str = '', raw_material:
     return '기타'
 
 
-def categorize_general_food(product_name: str, raw_material: str = '') -> str:
+# 2026-06 사용자 카테고리 재분류 검토 중 이름 패턴으로 일반화하기 어려운 개별 판정.
+# (예: 동일/유사 이름의 다른 배치는 그대로 유지된 채 이 배치만 재분류되어 키워드 규칙화 불가능
+#  — "파라다이스 그레인 버닝"의 다른 품목제조번호는 계속 '기타'로 유지됨)
+# 품목제조번호로 정확히 지정하며, 매칭 시 다른 모든 규칙보다 우선 적용한다.
+_GENERAL_CATEGORY_OVERRIDES = {
+    '19690231003166': '기타',        # 블루베리 젤리
+    '198604350131684': '다이어트',    # 식물 유래 디오스민 함유 브이핏 캔디
+    '198604350131694': '기타',        # 미美미味 멜팅 엔자임
+    '198803550331678': '기타',        # 뉴트로벤(Nutroven)
+    '198803550331666': '기타',        # 제이케이알(JKR)01
+    '198803550331673': '구강',        # 덴마크 프리미엄 구강유산균 페퍼민트
+    '19900372087968': '기타',         # 식물혼합추출액(6년근 발효홍삼진액)
+    '19900372087976': '남성건강',     # 산삼 침향환 골드
+    '199104490041195': '기타',        # 준코라면 건더기스프
+    '19930309017274': '기타',         # 세라블룸 밀크세라마이드 캐러멜
+    '199301880912844': '기타',        # 고급카스타드P
+    '19990372301774': '에너지',       # 비타블루베리샷
+    '20000380147309': '기타',         # 통력 웰톡스-비에스형
+    '20000380147312': '기타',         # 통력
+    '200201832821534': '기타',        # 더블베리듬뿍콩포트
+    '20020445181256': '기타',         # 노벨데이
+    '20020445181255': '혈당',         # 베르베린분말 ("베르베린 복합 분말"은 그대로 기타 유지되어 일반화 불가)
+    '20030415157902': '기타',         # 드리프
+    '20030415157907': '다이어트',     # 포뮬라인 브이 헤스페리딘 젤리
+    '20030415157901': '기타',         # 과일야채 스틱
+    '20030415157905': '항산화',       # 유기농100% 레몬샷
+    '20030415157904': '항산화',       # 아스크라 유기농 올리브오일
+    '20050372172790': '효소',         # 파라다이스 그레인
+    '20050372172791': '효소',         # 파라다이스 그레인 버닝
+    '20050372172788': '관절',         # 소연골추출분말
+    '20050372172785': '관절',         # MBP유단백복합추출물
+    '20070309132952': '기타',         # 차마바요(CHAMABAYO)
+    '200703582241650': '기타',        # 샐러드 푸딩스틱
+    '20100461568342': '피부',         # 리포좀 글루타치온 하이퍼X 맥시멈 PRO
+    '20170449030768': '기타',         # 알로에정
+    '20180379618794': '기타',         # 천해산삼가수분해물
+    '2020042006894': '기타',          # 상미당 70-2 (L.brevis)
+}
+
+
+def categorize_general_food(product_name: str, raw_material: str = '', report_no: str = '') -> str:
     name = str(product_name or '')
     raw  = str(raw_material or '')
+
+    override = _GENERAL_CATEGORY_OVERRIDES.get(str(report_no or ''))
+    if override:
+        return override
 
     # 규칙 1·2: 맥주효모 또는 (효모+비오틴) → 모발
     if '맥주효모' in name or '맥주효모' in raw:
@@ -233,11 +332,32 @@ def categorize_general_food(product_name: str, raw_material: str = '') -> str:
     if any(kw in name for kw in ('이노시톨', '콜린미오', '콜린미오이노시톨', '미오이노시톨콜린')):
         return '여성건강'
 
-    # 규칙 4: 파우더/분말 suffix → 기타
+    # 규칙 3-1: 레드와인 비니거(발효식초) → 혈당
+    # 2026-06 사용자 재분류: 동일 발효식초 제품형태 중 '레드와인 비니거' 계열만 혈당으로 지정
+    if '레드와인' in name and ('비니거' in name or '식초' in raw):
+        return '혈당'
+
+    # 규칙 4: 알파사이클로덱스트린 계열(다이어트 보조원료 브랜딩) → 다이어트
+    # 함께 섞인 프로바이오틱스(고시형)/효소식품/향료 등 무관한 키워드에 우선순위가
+    # 밀려 기타·항산화·구강 등으로 흩어지던 문제 발견(2026-07 v2 데이터 재현, 57건 중 53건).
+    # '~파우더' 이름이 많아 규칙 5(파우더/분말→기타)보다 먼저 검사해야 함
+    # 'CD' 단독 키워드는 BCD 매트릭스(비타민D)·CDU(한방환)·CDX·CDRN 등과 오매칭되어 제외
+    if re.search(r'알파\s*cd', name, re.IGNORECASE) or any(
+        kw in raw for kw in ('알파시클로덱스트린', '알파씨클로덱스트린', 'α-시클로덱스트린')
+    ):
+        return '다이어트'
+
+    # 규칙 5: 파우더/분말 suffix → 기타
     if '파우더' in name or name.endswith('분말'):
         return '기타'
 
-    # 규칙 5: 오분류 유발 원재료명 마스킹 후 매칭
+    # 규칙 5-1: 마리골드꽃추출물(루테인 원료, 눈 건강용) → 기타
+    # 일반식품 카테고리 17종에 '눈'이 없어 방치하면 타우린/자일리톨/블루베리향 등
+    # 무관한 부원료·향료 키워드에 우연히 걸려 구강/피로개선/항산화 등으로 뿔뿔이 흩어짐
+    if '마리골드꽃추출물' in name or '마리골드꽃추출물' in raw:
+        return '기타'
+
+    # 규칙 6: 오분류 유발 원재료명 마스킹 후 매칭
     name_c = name
     raw_c  = raw
     for m in _GENERAL_MASK:
@@ -247,5 +367,5 @@ def categorize_general_food(product_name: str, raw_material: str = '') -> str:
     result = _match_text(name_c, _GENERAL_MAP)
     if result:
         return result
-    result = _match_text(raw_c, _GENERAL_MAP_RAW)
+    result = _match_text(_strip_flavor_tokens(raw_c), _GENERAL_MAP_RAW)
     return result if result else '기타'

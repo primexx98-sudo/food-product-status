@@ -50,11 +50,14 @@ def main():
 
     print("일반식품 수집 중...")
     general_data = fetch_general_food(api_key, year, month)
-    general_data = [r for r in general_data if not is_general_excluded(r.get('품목명', ''))]
+    general_data = [
+        r for r in general_data
+        if not is_general_excluded(r.get('품목명', ''), r.get('품목제조번호', ''))
+    ]
     general_data.sort(key=lambda x: str(x.get('보고일자', '') or ''))
     for item in general_data:
         item['카테고리'] = categorize_general_food(
-            item.get('품목명', ''), item.get('원재료명', '')
+            item.get('품목명', ''), item.get('원재료명', ''), item.get('품목제조번호', '')
         )
     print(f"  일반식품: {len(general_data)}건")
 
