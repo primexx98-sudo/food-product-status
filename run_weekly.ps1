@@ -19,7 +19,7 @@ $logFile = Join-Path $logDir ("weekly_{0}.log" -f (Get-Date -Format 'yyyyMMdd_HH
 
 $env:PYTHONIOENCODING = 'utf-8'
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-$output = & "C:\Users\thefuture_brand\AppData\Local\Programs\Python\Python311\python.exe" src/main.py 2>&1
+$output = & "C:\Users\ADMIN\AppData\Local\Programs\Python\Python311\python.exe" src/main.py 2>&1
 $exitCode = $LASTEXITCODE
 $output | Out-File -FilePath $logFile -Encoding utf8
 

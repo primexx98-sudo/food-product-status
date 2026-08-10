@@ -3,3 +3,4 @@ __pycache__/
 .env
 ~$*.xlsx
 logs/
+*.xlsx.bak_*

@@ -15,8 +15,11 @@ def main():
         print("오류: FOOD_API_KEY 환경변수가 설정되지 않았습니다.")
         sys.exit(1)
 
-    now = datetime.now()
-    year, month = now.year, now.month
+    if len(sys.argv) >= 3:
+        year, month = int(sys.argv[1]), int(sys.argv[2])
+    else:
+        now = datetime.now()
+        year, month = now.year, now.month
     print(f"[{year}-{month:02d}] 데이터 수집 시작")
 
     print("건강기능식품 수집 중...")
