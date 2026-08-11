@@ -22,6 +22,8 @@ _WHITE_FONT  = Font(color='FFFFFF', bold=True)
 _BOLD_FONT   = Font(bold=True)
 _CENTER      = Alignment(horizontal='center', vertical='center')
 _BLUE_FONT   = Font(color='4472C4')
+_RED_FONT    = Font(color='FF0000')
+_DIFF_LABEL_FONT = Font(italic=True, size=9, color='808080')
 
 
 def _autofit(ws):
@@ -98,7 +100,7 @@ def _gather_monthly_counts(output_dir: str, year: int,
 
 
 def _write_summary_table(ws, title: str, monthly_data: dict,
-                         cat_list: list[str], row_start: int):
+                         cat_list: list[str], row_start: int) -> int:
     # 제목
     title_cell = ws.cell(row=row_start, column=2, value=title)
     title_cell.font = Font(bold=True, size=13, color='1F3864')
@@ -117,20 +119,45 @@ def _write_summary_table(ws, title: str, monthly_data: dict,
     tc.font = _BOLD_FONT
     tc.alignment = _CENTER
 
+    dr = header_row
+    prev_counts = None
+    prev_total = None
     for month in range(1, 13):
-        dr = header_row + month
+        dr += 1
         ws.cell(row=dr, column=1, value=f"{month:02d}월").font = _BOLD_FONT
         row_total = 0
+        counts = {}
         for ci, cat in enumerate(cat_list, 2):
             count = monthly_data[month].get(cat, 0)
             c = ws.cell(row=dr, column=ci, value=count)
             c.alignment = _CENTER
             if count == 0:
                 c.font = _BLUE_FONT
+            counts[cat] = count
             row_total += count
         total_c = ws.cell(row=dr, column=total_col, value=row_total)
         total_c.alignment = _CENTER
         total_c.font = _BOLD_FONT
+
+        if prev_counts is not None:
+            dr += 1
+            ws.cell(row=dr, column=1, value='전월대비').font = _DIFF_LABEL_FONT
+            for ci, cat in enumerate(cat_list, 2):
+                diff = counts[cat] - prev_counts[cat]
+                c = ws.cell(row=dr, column=ci, value=diff)
+                c.alignment = _CENTER
+                if diff < 0:
+                    c.font = _RED_FONT
+            diff_total = row_total - prev_total
+            dt_c = ws.cell(row=dr, column=total_col, value=diff_total)
+            dt_c.alignment = _CENTER
+            if diff_total < 0:
+                dt_c.font = _RED_FONT
+
+        prev_counts = counts
+        prev_total = row_total
+
+    return dr
 
 
 def _write_dashboard(ws, output_dir: str, year: int,
@@ -145,11 +172,10 @@ def _write_dashboard(ws, output_dir: str, year: int,
     year_cell = ws.cell(row=1, column=1, value=year)
     year_cell.font = Font(bold=True, size=14)
 
-    _write_summary_table(ws, '건강기능식품 품목제조신고 현황 - 기능성 별',
-                         monthly_h, HEALTH_CAT_LIST, row_start=1)
+    last_row = _write_summary_table(ws, '건강기능식품 품목제조신고 현황 - 기능성 별',
+                                    monthly_h, HEALTH_CAT_LIST, row_start=1)
 
-    # 건강기능식품 테이블: rows 1~14 (title + header + 12 months)
-    general_start = 1 + 14 + 2  # = 17
+    general_start = last_row + 3  # 빈 줄 2개 띄우고 다음 테이블 시작
     _write_summary_table(ws, '일반식품 품목제조보고 현황 - 기능성 별',
                          monthly_g, GENERAL_CAT_LIST, row_start=general_start)
 
