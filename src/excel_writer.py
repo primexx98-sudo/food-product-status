@@ -24,6 +24,8 @@ _CENTER      = Alignment(horizontal='center', vertical='center')
 _BLUE_FONT   = Font(color='4472C4')
 _RED_FONT    = Font(color='FF0000')
 _DIFF_LABEL_FONT = Font(italic=True, size=9, color='808080')
+_DIFF_UP_FILL   = PatternFill(start_color='C6EFCE', end_color='C6EFCE', fill_type='solid')
+_DIFF_DOWN_FILL = PatternFill(start_color='FFC7CE', end_color='FFC7CE', fill_type='solid')
 
 
 def _autofit(ws):
@@ -146,12 +148,18 @@ def _write_summary_table(ws, title: str, monthly_data: dict,
                 diff = counts[cat] - prev_counts[cat]
                 c = ws.cell(row=dr, column=ci, value=diff)
                 c.alignment = _CENTER
-                if diff < 0:
+                if diff > 0:
+                    c.fill = _DIFF_UP_FILL
+                elif diff < 0:
+                    c.fill = _DIFF_DOWN_FILL
                     c.font = _RED_FONT
             diff_total = row_total - prev_total
             dt_c = ws.cell(row=dr, column=total_col, value=diff_total)
             dt_c.alignment = _CENTER
-            if diff_total < 0:
+            if diff_total > 0:
+                dt_c.fill = _DIFF_UP_FILL
+            elif diff_total < 0:
+                dt_c.fill = _DIFF_DOWN_FILL
                 dt_c.font = _RED_FONT
 
         prev_counts = counts
