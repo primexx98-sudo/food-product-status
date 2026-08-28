@@ -132,6 +132,10 @@ _GENERAL_MAP = [
 _GENERAL_MAP_RAW_OVERRIDES = {
     '피부': ['피부탄력', '피부미용', '피부건강'],
     '효소': [],
+    # '표고버섯'은 조리 반찬류(유부주머니 등)에 부재료로 흔히 섞여 원재료만으로
+    # 면역에 오매칭되는 문제 확인(2026-08) — 원재료 매칭에서만 제외, 품목명에
+    # 표고버섯이 브랜딩된 경우는 _GENERAL_MAP(명칭 매칭)으로 그대로 커버됨.
+    '면역': ['면역력', '베타글루칸', '이뮨', '면역', 'AHCC', '도라지', '맥문동'],
 }
 
 _GENERAL_MAP_RAW = [
@@ -156,6 +160,9 @@ _GENERAL_EXCLUDE_CONTAINS = (
     '저온볶음', '들깨박', '참깨박', '조미고추분', '볶음참깨', '볶음조미깨',
     # 냉동 원물(기능성 가공·브랜딩 없는 단순 냉동 과일·채소) — 2026-08 사용자 확인
     '냉동',
+    # 2026-08-28 업소명 제외 후에도 남은 개별 잡음 — 업소당 1건뿐이라 업소 단위
+    # 제외 근거는 부족하지만 품목명 패턴 자체는 명확한 경우 (사용자 확인)
+    '커피믹스', '빵가루', '아이스볼',
 )
 
 # 상표명 코드 + 믹스/프리믹스/베이스 + 배치번호 형태의 B2B 프리믹스 제품
@@ -167,6 +174,22 @@ _GENERAL_EXCLUDE_CODE_MIX_RE = re.compile(r'^[A-Z]{2,4}(믹스|프리믹스|베�
 _GENERAL_EXCLUDE_EN_PAREN_RE = re.compile(
     r'\((Blend|Base|Mix|Complex|Oat-Mix|Crunch|Crunchy)[^)]*\)', re.IGNORECASE
 )
+
+# 업소명 기반 전체 제외 — 확인 결과 해당 업소가 신고한 일반식품 품목이 3개월(6~8월)
+# 전수 모두 건강기능성과 무관한 단일 품목군(반찬/전류·베이커리 부재료·캐릭터 사탕·
+# 원물 손질류)이라 회사 단위로 제외해도 오탐 위험이 없음 확인됨 (2026-08 검토).
+# 주식회사뉴젠바이오(쌀눈 추출물·마그네슘)는 건강기능성 원료 성격이라 제외 목록에서 뺌.
+_GENERAL_EXCLUDE_COMPANIES = {
+    '(주)토스크',                    # 캐릭터 초콜릿·데코펜·전사지 (파이리Q/꼬부기Q/독도강치 등)
+    '달콤미푸드',                    # 생크림/버터크림/크림치즈크림 등 베이커리 부재료
+    '(주)사옹원',                    # 해물파전/산나물전/매생이전/녹두빈대떡 등 전·부침류
+    '한빛식품',                      # 유부주머니/볶은유부 등 조리 반찬류
+    '(주)정과원',                    # 곶감 잣말이 등 전통 견과·건과 말이류
+    '농업회사법인 상상푸드(주)',     # 야채팩혼합/조개찜야채팩 등 야채팩 원물가공
+    '대구농산(주) 강동지점',         # 볶은참깨/볶은검정깨 등 원물 손질류
+    '농업회사법인샘골잣집주식회사',  # 잣말이 등 전통 견과 말이류
+    '(주)원그대로',                  # 자연에 말린 고수 등 원물 건조류
+}
 
 # 2026-06 사용자 삭제 검토분 중 이름 패턴으로 일반화하기 어려운 개별 품목
 # (동일/유사 이름의 다른 품목은 그대로 유지되어 품목제조번호로 정확히 지정)
@@ -189,9 +212,11 @@ _GENERAL_EXCLUDE_REPORT_NOS = {
 }
 
 
-def is_general_excluded(product_name: str, report_no: str = '') -> bool:
+def is_general_excluded(product_name: str, report_no: str = '', company: str = '') -> bool:
     name = str(product_name or '').strip()
     if str(report_no or '') in _GENERAL_EXCLUDE_REPORT_NOS:
+        return True
+    if str(company or '').strip() in _GENERAL_EXCLUDE_COMPANIES:
         return True
     if any(name.endswith(s) for s in _GENERAL_EXCLUDE_SUFFIXES):
         return True

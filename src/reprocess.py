@@ -41,7 +41,7 @@ def reprocess(root_dir, year, month):
     before = len(general_data)
     general_data = [
         r for r in general_data
-        if not is_general_excluded(r.get('품목명', ''), r.get('품목제조번호', ''))
+        if not is_general_excluded(r.get('품목명', ''), r.get('품목제조번호', ''), r.get('업소명', ''))
     ]
     after = len(general_data)
     general_data.sort(key=lambda x: str(x.get('보고일자', '') or ''))
