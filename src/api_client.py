@@ -1,3 +1,5 @@
+import calendar
+import datetime
 import time
 import xml.etree.ElementTree as ET
 
@@ -81,44 +83,48 @@ def _parse_xml(xml_text: str, field_map: dict) -> tuple[int, list[dict]]:
     return total, rows
 
 
-def _fetch_all(api_key: str, service: str, field_map: dict, year: int, month: int) -> list[dict]:
-    date_filter = f"{year}{month:02d}"
+def _fetch_page(session: requests.Session, api_key: str, service: str,
+                 start: int, end: int, date_filter: str) -> str:
+    """단일 페이지 요청 (재시도 포함). 응답 원문(XML)을 반환."""
+    url = _build_url(api_key, service, start, end, date_filter)
+
+    for attempt in range(5):
+        try:
+            resp = session.get(url, timeout=60)
+            resp.raise_for_status()
+            return resp.text
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code in (403, 401):
+                raise
+            print(f"  [HTTP {e.response.status_code}] {url}")
+            if attempt == 4:
+                raise
+        except requests.exceptions.Timeout:
+            print(f"  [타임아웃] {url[:60]}...")
+            if attempt == 4:
+                raise
+        except requests.exceptions.RequestException as e:
+            print(f"  [연결오류] {type(e).__name__}: {e}")
+            if attempt == 4:
+                raise
+        wait = 2 ** attempt
+        print(f"  재시도 {attempt + 1}/5 ({wait}초 대기)")
+        time.sleep(wait)
+
+
+def _fetch_for_date(session: requests.Session, api_key: str, service: str,
+                     field_map: dict, date_filter: str) -> list[dict]:
+    """PRMS_DT=date_filter(8자리) 조건으로 전체 페이지 수집."""
     all_rows: list[dict] = []
     start = 1
 
-    session = requests.Session()
-    session.headers.update({"User-Agent": "Mozilla/5.0"})
-
     while True:
         end = start + PAGE_SIZE - 1
-        url = _build_url(api_key, service, start, end, date_filter)
-
-        for attempt in range(5):
-            try:
-                resp = session.get(url, timeout=60)
-                resp.raise_for_status()
-                break
-            except requests.exceptions.HTTPError as e:
-                if e.response.status_code in (403, 401):
-                    raise
-                print(f"  [HTTP {e.response.status_code}] {url}")
-                if attempt == 4:
-                    raise
-            except requests.exceptions.Timeout:
-                print(f"  [타임아웃] {url[:60]}...")
-                if attempt == 4:
-                    raise
-            except requests.exceptions.RequestException as e:
-                print(f"  [연결오류] {type(e).__name__}: {e}")
-                if attempt == 4:
-                    raise
-            wait = 2 ** attempt
-            print(f"  재시도 {attempt + 1}/5 ({wait}초 대기)")
-            time.sleep(wait)
+        xml_text = _fetch_page(session, api_key, service, start, end, date_filter)
 
         try:
-            total, rows = _parse_xml(resp.text, field_map)
-        except RuntimeError as e:
+            total, rows = _parse_xml(xml_text, field_map)
+        except RuntimeError:
             if all_rows:
                 print(f"  [경고] {service}: 쿼터 초과, {len(all_rows)}건까지만 수집됨")
                 break
@@ -128,7 +134,6 @@ def _fetch_all(api_key: str, service: str, field_map: dict, year: int, month: in
             break
 
         all_rows.extend(rows)
-        print(f"  {service}: {len(all_rows)}/{total} 수집")
 
         if len(all_rows) >= total or len(rows) < PAGE_SIZE:
             break
@@ -136,8 +141,59 @@ def _fetch_all(api_key: str, service: str, field_map: dict, year: int, month: in
         start = end + 1
         time.sleep(1.0)
 
+    return all_rows
+
+
+def _fetch_all(api_key: str, service: str, field_map: dict, year: int, month: int) -> list[dict]:
+    """
+    2026-08-26부터 식품안전나라 API가 PRMS_DT 6자리(YYYYMM)를 거부하고
+    8자리(YYYYMMDD) 단일값만 받기 시작함(ERROR-302). 8자리로 바꿨을 때 그 하루치만
+    반환하는지(단일일) 그 날짜 이후 전체를 반환하는지(누적, 기존 6자리와 동일 의미)는
+    API 문서에 없어 매 호출마다 그 달 1일 응답을 보고 실측 판별한다.
+    """
+    month_prefix = f"{year}{month:02d}"
+    first_day = f"{month_prefix}01"
     date_col = '보고일자'
-    filtered = [r for r in all_rows if r.get(date_col, '').startswith(date_filter)]
+
+    session = requests.Session()
+    session.headers.update({"User-Agent": "Mozilla/5.0"})
+
+    rows = _fetch_for_date(session, api_key, service, field_map, first_day)
+
+    dates_seen = {r.get(date_col, '')[:8] for r in rows if r.get(date_col, '')}
+    is_cumulative = any(d != first_day for d in dates_seen)
+
+    if is_cumulative:
+        print(f"  {service}: 8자리 날짜 = 누적형 필터로 확인됨 (기존 방식과 동일)")
+        all_rows = rows
+    else:
+        print(f"  {service}: 8자리 날짜 = 단일일 필터로 확인됨 → 일자별 수집으로 전환")
+        today = datetime.date.today()
+        if year == today.year and month == today.month:
+            last_day = today.day
+        else:
+            last_day = calendar.monthrange(year, month)[1]
+
+        merged: dict[str, dict] = {}
+        for row in rows:
+            key = row.get('품목제조번호', '')
+            if key:
+                merged[key] = row
+
+        for day in range(2, last_day + 1):
+            date_filter = f"{month_prefix}{day:02d}"
+            day_rows = _fetch_for_date(session, api_key, service, field_map, date_filter)
+            for row in day_rows:
+                key = row.get('품목제조번호', '')
+                if key:
+                    merged[key] = row
+            time.sleep(0.5)
+
+        all_rows = list(merged.values())
+
+    print(f"  {service}: {len(all_rows)}건 수집")
+
+    filtered = [r for r in all_rows if r.get(date_col, '').startswith(month_prefix)]
     return filtered if filtered else all_rows
 
 
