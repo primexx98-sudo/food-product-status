@@ -35,7 +35,7 @@
 
   table { width: 100%; border-collapse: collapse; }
   td { padding: 5px 0; font-size: 0.86rem; vertical-align: middle; }
-  td.rank { width: 26px; color: #909aa4; font-size: 0.82rem; text-align: center; }
+  td.rank { width: 26px; padding-right: 6px; color: #909aa4; font-size: 0.82rem; text-align: right; }
   td.name { padding-right: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
   td.bar-cell { width: 60%; }
   .bar { height: 18px; border-radius: 4px; min-width: 30px; white-space: nowrap;
@@ -101,7 +101,7 @@ function renderCards(data) {
     <div class="card">
       <div class="card-header">🏭 지정 제조사별 신고건수</div>
       <div class="card-note">동일 계열 공장(예: OO(주) 세종3공장/음성공장)은 한 회사로 합산</div>
-      ${renderBarTable(data.company_watchlist, 10)}
+      ${renderBarTable(data.company_watchlist, 20)}
     </div>
     <div class="card">
       <div class="card-header">🗂 카테고리별 신고건수</div>
