@@ -1,0 +1,452 @@
+{
+  "198604350131694": {
+    "company": "코스맥스바이오(주)",
+    "name": "미美미味 멜팅 엔자임",
+    "reason": "곡물발효효소 및 아티초크 추출물 포함",
+    "verdict": "keep"
+  },
+  "198604350131696": {
+    "company": "코스맥스바이오(주)",
+    "name": "아이크런치순",
+    "reason": "스테비아 키워드 및 기능성 성분 포함",
+    "verdict": "keep"
+  },
+  "198604350131697": {
+    "company": "코스맥스바이오(주)",
+    "name": "아이크런치쿨하이",
+    "reason": "타우린 및 비타민A 등 기능성 성분 포함",
+    "verdict": "keep"
+  },
+  "19920392069466": {
+    "company": "(주)대도F&D",
+    "name": "무블럭",
+    "reason": "조리용 반가공 식자재",
+    "verdict": "exclude_candidate"
+  },
+  "19930309017274": {
+    "company": "(주)한샘식품",
+    "name": "세라블룸 밀크세라마이드 캐러멜",
+    "reason": "피부 건강 기능성 원료인 밀크세라마이드 포함",
+    "verdict": "keep"
+  },
+  "19940306085412": {
+    "company": "대영에프앤에스(주)",
+    "name": "썬플라워프로테인 LV",
+    "reason": "난소화성말토덱스트린 및 단백질 원료 포함",
+    "verdict": "keep"
+  },
+  "199802081831553": {
+    "company": "(주)뫼루니식품",
+    "name": "매부심배터믹스",
+    "reason": "조리용 반가공 배터믹스 식자재",
+    "verdict": "exclude_candidate"
+  },
+  "19990364004256": {
+    "company": "블루원",
+    "name": "올내리고 진",
+    "reason": "스테비아 키워드 포함",
+    "verdict": "keep"
+  },
+  "199903641582379": {
+    "company": "(주)진성에프엠",
+    "name": "깻잎퓨레",
+    "reason": "조리용 반가공 식자재",
+    "verdict": "exclude_candidate"
+  },
+  "200004490351011": {
+    "company": "(주)쟈뎅",
+    "name": "쟈뎅 바리스타 아이스말차 유자맛",
+    "reason": "단순 맛 중심 기호 음료 파우더",
+    "verdict": "exclude_candidate"
+  },
+  "200004490351012": {
+    "company": "(주)쟈뎅",
+    "name": "쟈뎅 바리스타 아이스말차 복숭아맛",
+    "reason": "단순 맛 중심 기호 음료 파우더",
+    "verdict": "exclude_candidate"
+  },
+  "20010364551880": {
+    "company": "(주)비오팜",
+    "name": "프로콜 포뮬러 A",
+    "reason": "건강 포뮬러 제품으로 유지 판단",
+    "verdict": "keep"
+  },
+  "20020368481868": {
+    "company": "(주)대호식품",
+    "name": "요거트립저당복숭아요거트파우더",
+    "reason": "필수 유지 키워드 알룰로스 및 스테비아 포함",
+    "verdict": "keep"
+  },
+  "200203836031029": {
+    "company": "(주)팜텍코리아",
+    "name": "유기농 올리브트리 더블코어샷",
+    "reason": "올리브유 웰빙 트렌드 품목",
+    "verdict": "keep"
+  },
+  "2002055601952": {
+    "company": "(주)대평",
+    "name": "녹차추출물(Green Tea Extract)",
+    "reason": "녹차추출물 기능성 성분 포함",
+    "verdict": "keep"
+  },
+  "20030368010911": {
+    "company": "(주)리빙라이프",
+    "name": "배리웨이쿠앤크단백혼합분말",
+    "reason": "분리유단백 및 대두단백 기능성 원료 포함",
+    "verdict": "keep"
+  },
+  "200306143071600": {
+    "company": "(주)젠푸드",
+    "name": "제주나다 골드퓨레 샷 100",
+    "reason": "단순 과일 가공 원물",
+    "verdict": "exclude_candidate"
+  },
+  "20050481640296": {
+    "company": "주식회사강동오케익",
+    "name": "라이트 슈가 말차 아이스크림",
+    "reason": "알룰로스 키워드 포함",
+    "verdict": "keep"
+  },
+  "20090440068633": {
+    "company": "(주)건영제과",
+    "name": "BND)옆집 젤리(포도)",
+    "reason": "젤리 키워드 포함",
+    "verdict": "keep"
+  },
+  "20100395093228": {
+    "company": "영농조합법인 산골농장",
+    "name": "24시간 산골농장 유기농 양배추브로콜리 진한즙",
+    "reason": "양배추 및 브로콜리 추출 건강즙",
+    "verdict": "keep"
+  },
+  "20100515088783": {
+    "company": "엔피케이(주)",
+    "name": "이뮤니스트 글로우 바이오타(IMMUNEAST GLOW BIOTA)",
+    "reason": "필수 유지 키워드 스테비아 포함",
+    "verdict": "keep"
+  },
+  "20100601486140": {
+    "company": "(주)락토메이슨",
+    "name": "락티플란티바실러스 플란타룸 LB1036 사균체",
+    "reason": "유산균 사균체 기능성 성분 포함",
+    "verdict": "keep"
+  },
+  "201102571531674": {
+    "company": "다솔푸드테크 주식회사",
+    "name": "2차파우더",
+    "reason": "B2B 조리용 파우더 원료",
+    "verdict": "exclude_candidate"
+  },
+  "20110435292177": {
+    "company": "(주)세종쎌팜",
+    "name": "부스터 더쏙",
+    "reason": "삼백초 키워드 및 기능성 성분 포함",
+    "verdict": "keep"
+  },
+  "20120607836361": {
+    "company": "(주)신광식품 2공장",
+    "name": "마일로초코",
+    "reason": "단순 초콜릿 기호식품",
+    "verdict": "exclude_candidate"
+  },
+  "2014039413324": {
+    "company": "홍천군농산물가공지원센터",
+    "name": "실링베리 동결건조 딸기",
+    "reason": "단순 과일 건조 가공품",
+    "verdict": "exclude_candidate"
+  },
+  "20140500065168": {
+    "company": "재단법인 고창식품산업연구원",
+    "name": "피넛트라",
+    "reason": "기능성 성분인 땅콩싹 추출물 포함",
+    "verdict": "keep"
+  },
+  "20140520102122": {
+    "company": "농업회사법인 개천골농원(주)",
+    "name": "유기농 볶은 참깨",
+    "reason": "조리용 단순 식자재",
+    "verdict": "exclude_candidate"
+  },
+  "20150445390319": {
+    "company": "(주)지에스바이오",
+    "name": "야관문 복분자 분말",
+    "reason": "고시형 프로바이오틱스 성분 포함",
+    "verdict": "keep"
+  },
+  "20150445390320": {
+    "company": "(주)지에스바이오",
+    "name": "야관문 더복분자 력",
+    "reason": "야관문 및 복분자 기반 건강식품",
+    "verdict": "keep"
+  },
+  "20150518023132": {
+    "company": "(주) 예인티앤지",
+    "name": "아이밸런스",
+    "reason": "금잔화 및 결명자 등 기능성 원료 포함",
+    "verdict": "keep"
+  },
+  "2016035518694": {
+    "company": "(주)탑프레시",
+    "name": "죠죠 오코노미야끼",
+    "reason": "일반 조리식품",
+    "verdict": "exclude_candidate"
+  },
+  "20160445053655": {
+    "company": "(주)성보 대소공장",
+    "name": "텐더용배터믹스EK",
+    "reason": "B2B 조리용 배터믹스 원료",
+    "verdict": "exclude_candidate"
+  },
+  "20160445053656": {
+    "company": "(주)성보 대소공장",
+    "name": "텐더용염지제EK",
+    "reason": "B2B 조리용 염지제 원료",
+    "verdict": "exclude_candidate"
+  },
+  "20170347016346": {
+    "company": "(주)베오베",
+    "name": "베오베 말차 파우더",
+    "reason": "음료 조리용 B2B 파우더",
+    "verdict": "exclude_candidate"
+  },
+  "201703720401233": {
+    "company": "(주)더원네이처",
+    "name": "산수유",
+    "reason": "기능성 브랜딩 없는 전통 원물 단순가공품",
+    "verdict": "exclude_candidate"
+  },
+  "201703720401234": {
+    "company": "(주)더원네이처",
+    "name": "숙지황",
+    "reason": "기능성 브랜딩 없는 전통 원물 단순가공품",
+    "verdict": "exclude_candidate"
+  },
+  "201703720401236": {
+    "company": "(주)더원네이처",
+    "name": "산약",
+    "reason": "기능성 브랜딩 없는 전통 원물 단순가공품",
+    "verdict": "exclude_candidate"
+  },
+  "201703720401238": {
+    "company": "(주)더원네이처",
+    "name": "질경이(차전자피)",
+    "reason": "기능성 브랜딩 없는 전통 원물 단순가공품",
+    "verdict": "exclude_candidate"
+  },
+  "201703720401239": {
+    "company": "(주)더원네이처",
+    "name": "계피",
+    "reason": "기능성 브랜딩 없는 전통 원물 단순가공품",
+    "verdict": "exclude_candidate"
+  },
+  "201703720401240": {
+    "company": "(주)더원네이처",
+    "name": "우슬",
+    "reason": "기능성 브랜딩 없는 전통 원물 단순가공품",
+    "verdict": "exclude_candidate"
+  },
+  "201703720401241": {
+    "company": "(주)더원네이처",
+    "name": "상백피",
+    "reason": "기능성 브랜딩 없는 전통 원물 단순가공품",
+    "verdict": "exclude_candidate"
+  },
+  "201703720401242": {
+    "company": "(주)더원네이처",
+    "name": "백복령",
+    "reason": "기능성 브랜딩 없는 전통 원물 단순가공품",
+    "verdict": "exclude_candidate"
+  },
+  "201703720401243": {
+    "company": "(주)더원네이처",
+    "name": "복분자",
+    "reason": "기능성 브랜딩 없는 전통 원물 단순가공품",
+    "verdict": "exclude_candidate"
+  },
+  "201703720401244": {
+    "company": "(주)더원네이처",
+    "name": "황금",
+    "reason": "기능성 브랜딩 없는 전통 원물 단순가공품",
+    "verdict": "exclude_candidate"
+  },
+  "201703720401245": {
+    "company": "(주)더원네이처",
+    "name": "원지",
+    "reason": "기능성 브랜딩 없는 전통 원물 단순가공품",
+    "verdict": "exclude_candidate"
+  },
+  "201703720401246": {
+    "company": "(주)더원네이처",
+    "name": "구기자",
+    "reason": "기능성 브랜딩 없는 전통 원물 단순가공품",
+    "verdict": "exclude_candidate"
+  },
+  "201703720401247": {
+    "company": "(주)더원네이처",
+    "name": "토사자",
+    "reason": "기능성 브랜딩 없는 전통 원물 단순가공품",
+    "verdict": "exclude_candidate"
+  },
+  "201703720401248": {
+    "company": "(주)더원네이처",
+    "name": "천문동",
+    "reason": "전통 한방 기능성 원료 포함",
+    "verdict": "keep"
+  },
+  "20170435483108": {
+    "company": "농업회사법인 넉넉한사람들(주)",
+    "name": "TOMADAY (토마데이)",
+    "reason": "단순 과채 가공 음료",
+    "verdict": "exclude_candidate"
+  },
+  "20180042191544": {
+    "company": "주식회사 더좋은네이처",
+    "name": "현미분말",
+    "reason": "단순 원물 가공 분말",
+    "verdict": "exclude_candidate"
+  },
+  "20180545231158": {
+    "company": "(주)웰빙",
+    "name": "상황버섯분말",
+    "reason": "상황버섯 웰빙 약용 소재",
+    "verdict": "keep"
+  },
+  "2020035815673": {
+    "company": "바이오펀치",
+    "name": "스포킹 UP 부스트",
+    "reason": "필수 유지 키워드 알룰로스 및 스테비아 포함",
+    "verdict": "keep"
+  },
+  "2020042006895": {
+    "company": "주식회사 아이제이푸드",
+    "name": "비치로잔 眞한 쌍화",
+    "reason": "필수 유지 키워드 생강 포함",
+    "verdict": "keep"
+  },
+  "20200467503760": {
+    "company": "올담식품",
+    "name": "사과초모식초분말C",
+    "reason": "웰빙 트렌드 소재 사과초모식초",
+    "verdict": "keep"
+  },
+  "20200559283198": {
+    "company": "농업회사법인(주)동서건강",
+    "name": "HS혼합추출물",
+    "reason": "한방 기능성 혼합 추출 원료",
+    "verdict": "keep"
+  },
+  "20210606928216": {
+    "company": "주식회사 마루바이오",
+    "name": "파이토메이드 올리브",
+    "reason": "건강 오일 소재 및 애매한 항목 유지",
+    "verdict": "keep"
+  },
+  "20210606928219": {
+    "company": "주식회사 마루바이오",
+    "name": "유기농 베르가못",
+    "reason": "웰빙 트렌드 소재 베르가못",
+    "verdict": "keep"
+  },
+  "2022036917445": {
+    "company": "주식회사 핑거",
+    "name": "트러피칼후르츠",
+    "reason": "단순 기호식품 및 식품첨가물 혼합제제",
+    "verdict": "exclude_candidate"
+  },
+  "20220514509610": {
+    "company": "주식회사 예본바이오",
+    "name": "노즈이펙트",
+    "reason": "효소식품 및 복합 기능성 제형",
+    "verdict": "keep"
+  },
+  "20220626056126": {
+    "company": "팜투팜1공장",
+    "name": "AS 코어쉘 펩타이드",
+    "reason": "기능성 성분 펩타이드 및 효모식품 포함",
+    "verdict": "keep"
+  },
+  "20230609874544": {
+    "company": "(주)뉴트리션바이오",
+    "name": "비아레드",
+    "reason": "기능성 아미노산 L-아르지닌 포함",
+    "verdict": "keep"
+  },
+  "2023082402019": {
+    "company": "농업회사법인 주식회사 네이처팜 제2공장",
+    "name": "갈아만든 논산 수박",
+    "reason": "필수 유지 키워드 스테비아 관련 성분 포함",
+    "verdict": "keep"
+  },
+  "20240365166253": {
+    "company": "콜마비앤에이치(주)세종3공장",
+    "name": "식이섬유 슈퍼 그린 샐러드 정",
+    "reason": "난소화성말토덱스트린 및 식이섬유 원료 포함",
+    "verdict": "keep"
+  },
+  "20240530065226": {
+    "company": "(주)스포츠바이오텍",
+    "name": "스포츠비타믹스S",
+    "reason": "비타민 복합 기능성 성분 포함",
+    "verdict": "keep"
+  },
+  "202406581736": {
+    "company": "농업회사법인주식회사미성팜",
+    "name": "쌍화진액골드",
+    "reason": "필수 유지 키워드 생강 포함",
+    "verdict": "keep"
+  },
+  "20250503810133": {
+    "company": "주식회사 핀코퍼레이션",
+    "name": "니즈미 토마토 레드 스무디",
+    "reason": "건강 클렌즈 스무디 트렌드 소재",
+    "verdict": "keep"
+  },
+  "202505515789": {
+    "company": "주식회사 에이스엠자임",
+    "name": "펜타러브샷",
+    "reason": "필수 유지 키워드 스테비아 포함",
+    "verdict": "keep"
+  },
+  "2025067625120": {
+    "company": "한올바이오 주식회사",
+    "name": "NST 유기농 발효노니 착즙혼합액",
+    "reason": "노니 소재 웰빙 음료",
+    "verdict": "keep"
+  },
+  "2025067625121": {
+    "company": "한올바이오 주식회사",
+    "name": "유기농 애플사이다 주스",
+    "reason": "애플사이다식초 웰빙 트렌드 품목",
+    "verdict": "keep"
+  },
+  "202603776264": {
+    "company": "진향바이오",
+    "name": "JHB 혼합분말 B",
+    "reason": "식물추출물 원료로 유지 판단",
+    "verdict": "keep"
+  },
+  "202606144641": {
+    "company": "초시대",
+    "name": "천연발효 딸기식초",
+    "reason": "단순 가공 식초 식자재",
+    "verdict": "exclude_candidate"
+  },
+  "202606144642": {
+    "company": "초시대",
+    "name": "천연발효 포도식초",
+    "reason": "단순 가공 식초 식자재",
+    "verdict": "exclude_candidate"
+  },
+  "202606144643": {
+    "company": "초시대",
+    "name": "천연발효 레몬식초",
+    "reason": "단순 가공 식초 식자재",
+    "verdict": "exclude_candidate"
+  },
+  "202608910521": {
+    "company": "파이토제닉스 농업회사법인(주)",
+    "name": "동결건조 브로콜리 마이크로그린 분말",
+    "reason": "브로콜리싹 슈퍼푸드 기능성 소재",
+    "verdict": "keep"
+  }
+}
