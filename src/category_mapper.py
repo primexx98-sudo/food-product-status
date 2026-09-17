@@ -221,6 +221,31 @@ _CITRUS_FRUITS = ('레몬', '감귤', '자몽', '귤')
 _CITRUS_JUICE_SIGNAL = ('즙', '주스', '착즙', '농축액', '원액', 'NFC', '샷')
 _CITRUS_EXCLUDE_SIGNAL = ('젤리', '캔디', '시럽', '에이드', '아이스', '믹스', '펄프', '사탕', '차')
 
+# 2026-09-17: 원재료명 부재료급 매칭(규칙 8) 잔여 표본을 사용자와 함께 검토한 결과, 크게
+# 두 패턴으로 갈림 — (A) 감초/작약/천궁/오미자/인삼 등 전통 한방 원료를 여러 종 섞은 복합
+# 환·액·차 제품(원료 자체가 "여러 한방재의 혼합"이 정체성이라 그중 하나가 우연히 특정
+# 카테고리 키워드와 겹친 것뿐, 예: "백비파낙스"는 17종 한방 원료 중 8번째 "인삼" 하나로
+# 에너지 결정), (B) 유청단백/바나바잎/NAG/유산균처럼 구체적 기능성 원료가 있고 단지 부형제
+# (덱스트린/이눌린/식품첨가물 등)가 앞쪽에 나열되는 형식적 이유로 순번만 밀린 현대 포뮬러
+# 제품(원료 자체는 목적이 뚜렷함, 예: 유청단백분말이 늦게 나온 단백질 쉐이크). 사용자 확인
+# 결과 (A)만 기타로 보내고 (B)는 유지하기로 결정 — 원재료명에 전통 한방 원료 마커가
+# 3종 이상 겹치면 (A)로 판정한다(임계값 3은 실제 표본 검증 결과 기준).
+_TRADITIONAL_HERB_MARKERS = (
+    '감초', '작약', '천궁', '지황', '복령', '창출', '독활', '쇠무릅', '두충', '황기',
+    '도라지', '맥문동', '오미자', '산수유', '구기자', '복분자', '인삼', '홍삼', '흑삼',
+    '녹용', '침향', '당귀', '계피', '대추', '육두구', '몰약', '인동꽃', '국화꽃', '겨우살이',
+    '삼백초', '헛개나무', '엉겅퀴', '하수오', '천마', '배초향', '느릅나무', '약모밀',
+    '마가목', '삽주', '으아리', '갯실새삼', '사상자', '산조', '용안', '더덕', '결명자',
+    '삼지구엽초', '차즈기', '울금', '옥수수수염',
+)
+_TRADITIONAL_HERB_MIN_COUNT = 3
+
+
+def _is_traditional_herb_blend(raw_material: str) -> bool:
+    hits = {m for m in _TRADITIONAL_HERB_MARKERS if m in raw_material}
+    return len(hits) >= _TRADITIONAL_HERB_MIN_COUNT
+
+
 _GENERAL_WEAK_MAP = [
     ('에너지', ['에너지', '활력', '에너지드링크']),
     # '자일리톨'은 무설탕 제품 전반의 범용 감미료로 흔히 쓰여 실제 구강과 무관한 제품(마그네슘
@@ -434,6 +459,29 @@ def _match_text(text: str, keyword_map: list) -> str | None:
     return None
 
 
+# 2026-09-17: 원재료명은 식품표시 원칙상 함량 내림차순으로 나열되므로, 리스트 앞쪽일수록
+# 그 제품의 핵심 원료에 가깝고 뒤쪽일수록 여러 부재료 중 하나일 뿐이다. 그런데 기존
+# _match_text는 원재료명 전체를 위치 구분 없이 스캔해, 10개 넘는 원료가 든 복합
+# 한방/포뮬러 제품이 4번째 이후에 우연히 등장한 원료 키워드 하나로 카테고리가 결정되는
+# 사례가 다수 확인됨(사용자 지적, "이미 붙은 카테고리가 근거 약함" — 6~9월 데이터 감사
+# 결과 원재료명 매칭 742건 중 461건(62%)이 4번째 이후 원료에서만 매칭). 원재료명 매칭은
+# 상위 N개 이내에 있을 때만 "강한 매칭"으로 인정하고, 그 밖은 다른 카테고리가 모두
+# 실패했을 때만 적용되는 최후 보조 단계(규칙 8)로 격하한다.
+_RAW_STRONG_RANK_LIMIT = 3
+
+
+def _match_text_ranked(text: str, keyword_map: list, max_rank: int) -> str | None:
+    """원재료명 콤마 구분 리스트 기준 상위 max_rank개 토큰 안에서만 매칭"""
+    tokens = [t.strip().lower() for t in text.split(',')][:max_rank]
+    for cat, keywords in keyword_map:
+        for kw in keywords:
+            kw_l = kw.lower()
+            for tok in tokens:
+                if kw_l in tok:
+                    return cat
+    return None
+
+
 def _strip_flavor_tokens(raw_material: str) -> str:
     """원재료명 토큰 중 향료류(실제 원료가 아닌 향 첨가물) 제거.
 
@@ -634,7 +682,8 @@ def categorize_general_food(product_name: str, raw_material: str = '', report_no
     result = _match_text(name_c, _GENERAL_MAP)
     if result:
         return result
-    result = _match_text(_strip_flavor_tokens(raw_c), _GENERAL_MAP_RAW)
+    raw_stripped = _strip_flavor_tokens(raw_c)
+    result = _match_text_ranked(raw_stripped, _GENERAL_MAP_RAW, _RAW_STRONG_RANK_LIMIT)
     if result:
         return result
 
@@ -650,4 +699,15 @@ def categorize_general_food(product_name: str, raw_material: str = '', report_no
 
     # 규칙 7: 약한(범용 마케팅) 키워드 — 위 강한 키워드 매칭에 전부 실패했을 때만 보조 적용
     result = _match_text(name_c, _GENERAL_WEAK_MAP)
-    return result if result else '기타'
+    if result:
+        return result
+
+    # 규칙 8 (2026-09-17 신설): 원재료명 부재료급 매칭 — 규칙 6에서 상위 3개 안에 들지
+    # 못해 탈락했던 원재료 키워드도, 다른 카테고리 매칭이 전부 실패했다면 완전히 버리기보단
+    # 최후 보조 신호로 인정한다(위치 제한 없이 전체 원재료명 대상 재검사). 단, 전통 한방
+    # 원료를 3종 이상 섞은 복합 조제품(원료 자체가 정체성이라 특정 카테고리로 단정 불가)은
+    # 사용자 확인 후 기타로 보낸다.
+    result = _match_text(raw_stripped, _GENERAL_MAP_RAW)
+    if result and _is_traditional_herb_blend(raw_stripped):
+        return '기타'
+    return result or '기타'
