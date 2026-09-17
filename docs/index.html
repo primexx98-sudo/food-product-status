@@ -99,9 +99,9 @@ function renderCards(data) {
   const cardsEl = document.getElementById('cards');
   cardsEl.innerHTML = `
     <div class="card">
-      <div class="card-header">🏭 업소(제조사)별 신고건수 TOP10</div>
-      <div class="card-note">동일 업소명 기준 신고건수 합계 (OEM/ODM 특성상 한 업소가 다수 브랜드 제품을 생산할 수 있음)</div>
-      ${renderBarTable(data.company, 10)}
+      <div class="card-header">🏭 지정 제조사별 신고건수</div>
+      <div class="card-note">동일 계열 공장(예: OO(주) 세종3공장/음성공장)은 한 회사로 합산</div>
+      ${renderBarTable(data.company_watchlist, 10)}
     </div>
     <div class="card">
       <div class="card-header">🗂 카테고리별 신고건수</div>

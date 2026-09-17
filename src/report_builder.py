@@ -37,7 +37,32 @@ GENERAL_EXCLUDE_INGREDIENTS = {
     '물엿', '덱스트린', '유당', '혼합유당',
 }
 
+# 사용자가 지정한 관심 제조사 목록(2026-09-17) — 업소명에 공장/지점 suffix가 붙어 여러 줄로
+# 흩어지는 경우가 많아(예: "콜마비앤에이치(주)세종3공장"/"...음성공장") 대표 키워드로 부분일치
+# 매칭해 한 회사로 합산한다. "서흥"은 계열사 "서흥헬스케어"도 함께 집계(같은 브랜드로 판단).
+COMPANY_WATCHLIST = [
+    ('노바렉스', '노바렉스'),
+    ('한미양행', '한미양행'),
+    ('서흥', '서흥'),
+    ('우리바이오', '우리바이오'),
+    ('콜마비앤에이치', '콜마비앤에이치'),
+    ('코스맥스바이오', '코스맥스바이오'),
+    ('코스맥스엔비티', '코스맥스엔비티'),
+    ('유유헬스케어', '유유헬스케어'),
+    ('동서바이오팜', '동서바이오팜'),
+    ('대원헬스케어', '대원헬스케어'),
+]
+
 _BRACKET_RE = re.compile(r'\[([^\]]+)\]')
+
+
+def _watchlist_counts(company_counter):
+    result = [
+        (label, sum(c for name, c in company_counter.items() if keyword in name))
+        for label, keyword in COMPANY_WATCHLIST
+    ]
+    result.sort(key=lambda pair: -pair[1])
+    return result
 
 
 def _normalize_health_ingredient(name):
@@ -101,6 +126,7 @@ def _aggregate(records, kind):
     return {
         'total': len(records),
         'company': company.most_common(TOP_N),
+        'company_watchlist': _watchlist_counts(company),
         'category': category.most_common(),
         'ingredient': ingredient.most_common(TOP_N),
     }
