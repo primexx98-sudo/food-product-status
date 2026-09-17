@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>품목신고보고랭킹</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #0f1216; color: #e9ecef; font-family: 'Malgun Gothic', sans-serif; min-height: 100vh; }
+  .hero { padding: 40px 24px 24px; text-align: center; }
+  .hero h1 { margin: 0 0 8px; font-size: 1.7rem; }
+  .hero p { margin: 0; color: #adb5bd; font-size: 0.9rem; }
+
+  .controls { max-width: 1200px; margin: 0 auto; padding: 0 24px 8px; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 12px; }
+  .controls select {
+    background: #171b21; color: #e9ecef; border: 1px solid #262b33; border-radius: 8px;
+    padding: 8px 12px; font-size: 0.88rem; font-family: inherit; cursor: pointer;
+  }
+  .kind-toggle { display: flex; gap: 6px; background: #171b21; border: 1px solid #262b33; border-radius: 10px; padding: 4px; }
+  .kind-toggle button {
+    background: transparent; border: none; color: #909aa4; padding: 8px 16px; border-radius: 8px;
+    font-size: 0.88rem; font-family: inherit; cursor: pointer; transition: background .15s, color .15s;
+  }
+  .kind-toggle button.active { background: #52b788; color: #0b0e11; font-weight: 700; }
+
+  .totals { text-align: center; color: #909aa4; font-size: 0.82rem; padding-bottom: 20px; }
+  .totals b { color: #e9ecef; }
+
+  .cards { max-width: 1200px; margin: 0 auto; padding: 0 24px 48px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  @media (max-width: 1000px) { .cards { grid-template-columns: 1fr; } }
+
+  .card { background: #171b21; border: 1px solid #262b33; border-radius: 16px; padding: 22px; }
+  .card-header { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 1rem; margin-bottom: 4px; }
+  .card-note { color: #565d66; font-size: 0.72rem; margin-bottom: 14px; line-height: 1.4; }
+
+  table { width: 100%; border-collapse: collapse; }
+  td { padding: 5px 0; font-size: 0.86rem; vertical-align: middle; }
+  td.rank { width: 26px; color: #909aa4; font-size: 0.82rem; text-align: center; }
+  td.name { padding-right: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
+  td.bar-cell { width: 60%; }
+  .bar { height: 18px; border-radius: 4px; min-width: 30px; white-space: nowrap;
+         color: #0b0e11; font-size: 11px; font-weight: 700; padding: 1px 6px;
+         font-family: 'JetBrains Mono', monospace; box-sizing: border-box; display: flex; align-items: center; }
+
+  .empty { color: #565d66; font-size: 0.85rem; text-align: center; padding: 20px 0; }
+
+  footer { text-align: center; color: #565d66; font-size: 0.78rem; padding: 24px; }
+  footer .credit { display: block; margin-top: 4px; font-size: 0.7rem; color: #3d4249; }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>📦 품목신고보고랭킹</h1>
+  <p>식품안전나라 품목제조신고(건강기능식품)·품목제조보고(일반식품) 데이터로 보는 업소·카테고리·원료 순위</p>
+</div>
+
+<div class="controls">
+  <select id="month-select"></select>
+  <div class="kind-toggle">
+    <button id="btn-health" class="active">🏷 건강기능식품</button>
+    <button id="btn-general">🥗 일반식품</button>
+  </div>
+</div>
+<div class="totals" id="totals"></div>
+
+<div class="cards" id="cards"></div>
+
+<footer>
+  매일 20:00 (KST) 자동 수집 · food-product-status
+  <span class="credit">이우찬</span>
+</footer>
+
+<script>
+const RANK_COLORS = ['#fcd535', '#f0b90b', '#eaecef', '#929aa5', '#707a8a'];
+
+function rankColor(i) {
+  return RANK_COLORS[Math.min(i, RANK_COLORS.length - 1)];
+}
+
+function renderBarTable(rows, limit) {
+  if (!rows || rows.length === 0) {
+    return '<div class="empty">데이터 없음</div>';
+  }
+  const items = rows.slice(0, limit);
+  const max = items[0][1] || 1;
+  const trs = items.map(([name, count], i) => {
+    const pct = Math.max((count / max) * 100, 8);
+    return `<tr>
+      <td class="rank">${i + 1}</td>
+      <td class="name" title="${name}">${name}</td>
+      <td class="bar-cell"><div class="bar" style="width:${pct}%;background:${rankColor(i)}">${count}</div></td>
+    </tr>`;
+  }).join('');
+  return `<table><tbody>${trs}</tbody></table>`;
+}
+
+function renderCards(data) {
+  const cardsEl = document.getElementById('cards');
+  cardsEl.innerHTML = `
+    <div class="card">
+      <div class="card-header">🏭 업소(제조사)별 신고건수 TOP10</div>
+      <div class="card-note">동일 업소명 기준 신고건수 합계 (OEM/ODM 특성상 한 업소가 다수 브랜드 제품을 생산할 수 있음)</div>
+      ${renderBarTable(data.company, 10)}
+    </div>
+    <div class="card">
+      <div class="card-header">🗂 카테고리별 신고건수</div>
+      <div class="card-note">기능성/용도 키워드 기반 자동 분류 카테고리 순위</div>
+      ${renderBarTable(data.category, 15)}
+    </div>
+    <div class="card">
+      <div class="card-header">🧪 원재료·기능성 성분별 TOP10</div>
+      <div class="card-note">${window.__currentKind === 'health'
+        ? '주된기능성 표시사항에 태깅된 기능성 원료 기준'
+        : '원재료명 기준, 정제수·부형제·감미료 등 범용 성분은 제외'}</div>
+      ${renderBarTable(data.ingredient, 10)}
+    </div>
+  `;
+}
+
+function renderTotals(payload) {
+  const h = payload.health.total, g = payload.general.total;
+  document.getElementById('totals').innerHTML =
+    `건강기능식품 <b>${h.toLocaleString()}</b>건 · 일반식품 <b>${g.toLocaleString()}</b>건`;
+}
+
+let currentPayload = null;
+
+function applyKind(kind) {
+  window.__currentKind = kind;
+  document.getElementById('btn-health').classList.toggle('active', kind === 'health');
+  document.getElementById('btn-general').classList.toggle('active', kind === 'general');
+  if (currentPayload) renderCards(currentPayload[kind]);
+}
+
+async function loadMonth(month) {
+  const res = await fetch(`data/${month}.json`);
+  currentPayload = await res.json();
+  renderTotals(currentPayload);
+  applyKind(window.__currentKind || 'health');
+}
+
+async function init() {
+  const months = await (await fetch('data/months.json')).json();
+  const select = document.getElementById('month-select');
+  const opt = document.createElement('option');
+  opt.value = 'cumulative';
+  opt.textContent = '전체 누적';
+  select.appendChild(opt);
+  months.slice().reverse().forEach(m => {
+    const o = document.createElement('option');
+    o.value = m;
+    o.textContent = `${m} 신고분`;
+    select.appendChild(o);
+  });
+  select.value = 'cumulative';
+  select.addEventListener('change', () => loadMonth(select.value));
+
+  document.getElementById('btn-health').addEventListener('click', () => applyKind('health'));
+  document.getElementById('btn-general').addEventListener('click', () => applyKind('general'));
+
+  window.__currentKind = 'health';
+  loadMonth('cumulative');
+}
+
+init();
+</script>
+</body>
+</html>

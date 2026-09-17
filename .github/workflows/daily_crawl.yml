@@ -43,10 +43,13 @@ jobs:
           FOOD_API_KEY: ${{ secrets.FOOD_API_KEY }}
         run: python src/main.py
 
+      - name: 랭킹 대시보드 데이터 생성
+        run: python src/report_builder.py
+
       - name: 결과 커밋 및 푸시
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add output/
+          git add output/ docs/data/
           git diff --staged --quiet || git commit -m "Auto: $(date +'%Y-%m-%d') 품목신고보고현황 업데이트"
           git push

@@ -7,22 +7,33 @@
 
 ## 실행 방법
 
+매일 20:00 KST에 GitHub Actions(`daily_crawl.yml`)가 자동으로 수집합니다.
+필요 시 로컬에서 수동 실행도 가능합니다.
+
 ```powershell
-# PowerShell — 매월 말일 또는 필요 시 실행
+# PowerShell — 필요 시 로컬 실행
 $env:FOOD_API_KEY = "인증키"
 python src/main.py
+python src/report_builder.py   # 랭킹 대시보드 데이터 갱신
 ```
 
-출력: `output/YYYY-MM_품목신고보고현황.xlsx`
+출력: `output/YYYY-MM_품목신고보고현황.xlsx`, `docs/data/*.json`(랭킹 대시보드용)
 
 > **PRMS_DT 필터는 누적형(≥)** 으로 동작 — 반드시 해당 월 말에 수집해야 정확한 월별 데이터를 얻을 수 있음
-> **GitHub Actions**: 한국 정부 API의 해외 IP 차단으로 실제 동작 불가.
+> **GitHub Actions**: 2026-07-15 한때 "해외 IP 차단으로 불가"로 판단했으나 오판이었음이 2026-07-29 확인됨 —
+> 매일 정상 동작 중. 상세는 [설계서.md 8절](설계서.md#8-실행-방법) 참고.
+
+## 랭킹 대시보드
+
+업소(제조사)별·카테고리별·원재료(기능성)별 신고건수 랭킹을 보여주는 정적 페이지가 `docs/`에 있습니다.
+[식품 모니터링 허브](https://primexx98-sudo.github.io/food-monitor-hub/report/)의 "품목신고보고랭킹" 탭에서
+매일 동기화된 최신 버전을 볼 수 있습니다. 상세 스펙은 [설계서.md 12절](설계서.md#12-랭킹-대시보드-docs-2026-09-17-신설) 참고.
 
 ## 자동 실행 (Windows 작업 스케줄러)
 
-같은 이유로 클라우드 자동화가 불가능해, 이 PC의 Windows 작업 스케줄러에 매주 월요일 09:00
-`run_weekly.ps1`을 실행하도록 등록해뒀습니다. API 키는 `.env`(git 미추적)에서 읽고,
-로그는 `logs/`에 남습니다. 상세는 [설계서.md 8-2](설계서.md#8-2-로컬-자동-실행-windows-작업-스케줄러-2026-07-15-추가) 참고.
+과거 GitHub Actions를 오판해 병행 도입했던 로컬 스케줄러는 2026-07-29 비활성화되었습니다
+(`Enable-ScheduledTask`로 되돌릴 수 있음, 삭제 아님). 현재 정기 자동화는 GitHub Actions 하나만
+사용합니다. 로컬 스케줄러 상세는 [설계서.md 8-2](설계서.md#8-2-로컬-자동-실행-windows-작업-스케줄러-2026-07-15-추가) 참고.
 
 ---
 
@@ -47,13 +58,15 @@ python src/main.py
 
 ```
 품목신고및보고현황/
-├── .github/workflows/daily_crawl.yml   # 미사용 (해외 IP 차단)
+├── .github/workflows/daily_crawl.yml   # 매일 20:00 KST 자동 수집 (유일한 자동화)
 ├── src/
 │   ├── main.py              # 메인 실행 파일
 │   ├── api_client.py        # API 호출 + 재시도(5회·60초) + 제품형태 필터
 │   ├── category_mapper.py   # 카테고리 분류 로직
-│   └── excel_writer.py      # 엑셀 생성
+│   ├── excel_writer.py      # 엑셀 생성
+│   └── report_builder.py    # 랭킹 대시보드 데이터(docs/data/*.json) 생성
 ├── output/                  # 월별 엑셀 저장
+├── docs/                    # 랭킹 대시보드 정적 페이지 (food-monitor-hub가 가져감)
 ├── 설계서.md                # 현재 상태 + 상세 스펙 + 변경 이력
 └── README.md                # 이 문서
 ```
