@@ -46,6 +46,11 @@ jobs:
       - name: 랭킹 대시보드 데이터 생성
         run: python src/report_builder.py
 
+      - name: 기타 품목 AI 스크리닝 (제외 후보 목록만 생성, 자동 반영 없음)
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python src/ai_gita_screen.py
+
       - name: 결과 커밋 및 푸시
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
