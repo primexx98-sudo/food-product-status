@@ -123,8 +123,56 @@ def _read_month_file(fpath):
     return result
 
 
+def _report_date(r):
+    return str(r.get('보고일자') or r.get('신고일자') or '')
+
+
+_CORP_TOKENS_RE = re.compile(r'\(주\)|주식회사')
+
+
+def _company_root(name):
+    """업소명에서 법인 표기를 지우고 공백으로 구분된 첫 토큰만 남긴다.
+
+    실제 데이터에 같은 회사가 "(주)메디오젠 충주공장"/"(주)메디오젠 제천공장"/
+    "(주)메디오젠"처럼 공장·지점명이 공백 뒤에 붙어 서로 다른 문자열로 흩어지는 경우가
+    흔해(COMPANY_WATCHLIST가 부분일치로 우회하는 것과 동일한 문제), 정확히 같은 업소명만
+    요구하면 재신고 탐지를 놓친다. 첫 토큰만 비교해 보수적으로 넓히되, 품목명·카테고리까지
+    동시에 일치해야 병합되므로 우연히 회사명 첫 단어만 같은 별개 업체까지 합쳐질 위험은
+    낮다(공백 없이 붙어 있는 "OO(주)세종3공장" 같은 표기는 이 정규화로도 못 잡지만, 그
+    경우는 그냥 병합을 건너뛸 뿐 잘못 병합되는 방향의 실수는 아니다).
+    """
+    n = _CORP_TOKENS_RE.sub('', str(name or '')).strip()
+    return n.split(' ')[0] if n else n
+
+
+def _dedupe_resubmissions(records):
+    """동일 업소(첫 토큰 기준)가 동일 품목명·동일 카테고리로 서로 다른 품목제조번호를 받아
+    재신고한 경우(2026-09-18 메디오젠 사례로 발견 — 예: 2주~6주 간격으로 재등록, 원재료
+    공급처 변경 등으로 추정)를 같은 제품의 갱신으로 보고 최신 보고일자 1건만 남긴다.
+
+    업소명/품목명이 없는 레코드는 중복 판정 자체가 불가능하므로 그대로 둔다.
+    """
+    best = {}
+    passthrough = []
+    for r in records:
+        company, name = r.get('업소명'), r.get('품목명')
+        if not company or not name:
+            passthrough.append(r)
+            continue
+        key = (_company_root(company), name, r.get('카테고리'))
+        existing = best.get(key)
+        if existing is None or _report_date(r) > _report_date(existing):
+            best[key] = r
+    removed = len(records) - len(best) - len(passthrough)
+    return list(best.values()) + passthrough, removed
+
+
 def _raw_aggregate(records, kind):
     """kind: 'health' 또는 'general'. 잘라내기 전 전체 Counter를 반환 (전월 대비 비교용)."""
+    records, removed = _dedupe_resubmissions(records)
+    if removed:
+        print(f'  [{kind}] 동일 업소·품목명·카테고리 재신고 {removed}건을 최신 1건으로 병합')
+
     company = Counter()
     category = Counter()
     ingredient = Counter()
