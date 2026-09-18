@@ -13,7 +13,7 @@ import glob
 import json
 import os
 import re
-from collections import Counter
+from collections import Counter, defaultdict
 
 from openpyxl import load_workbook
 
@@ -81,6 +81,15 @@ def _watchlist_counts(company_counter):
     ]
     result.sort(key=lambda pair: -pair[1])
     return result
+
+
+def _watchlist_items(company_items):
+    """지정 제조사(라벨)별 실제 신고 품목 리스트 — 공장/지점별로 흩어진 업소명을 키워드
+    부분일치로 합쳐서 모은다(`_watchlist_counts`와 동일한 매칭 방식)."""
+    return {
+        label: [item for comp, items in company_items.items() if keyword in comp for item in items]
+        for label, keyword in COMPANY_WATCHLIST
+    }
 
 
 def _normalize_health_ingredient(name):
@@ -168,7 +177,12 @@ def _dedupe_resubmissions(records):
 
 
 def _raw_aggregate(records, kind):
-    """kind: 'health' 또는 'general'. 잘라내기 전 전체 Counter를 반환 (전월 대비 비교용)."""
+    """kind: 'health' 또는 'general'. 잘라내기 전 전체 Counter를 반환 (전월 대비 비교용).
+
+    2026-09-18 추가: 카드 클릭 드릴다운용으로 카테고리·원재료·업소별 실제 품목 리스트
+    ([품목명, 업소명] 쌍)도 함께 모은다. 최종 JSON엔 `_finalize`에서 필요한 항목(표시되는
+    상위 N개)만 골라 담아 파일 크기를 억제한다.
+    """
     records, removed = _dedupe_resubmissions(records)
     if removed:
         print(f'  [{kind}] 동일 업소·품목명·카테고리 재신고 {removed}건을 최신 1건으로 병합')
@@ -176,20 +190,33 @@ def _raw_aggregate(records, kind):
     company = Counter()
     category = Counter()
     ingredient = Counter()
+    category_items = defaultdict(list)
+    ingredient_items = defaultdict(list)
+    company_items = defaultdict(list)  # 업소명 원문 기준 (watchlist는 finalize에서 키워드로 재취합)
 
     for r in records:
-        if r.get('업소명'):
-            company[r['업소명']] += 1
-        category[r.get('카테고리') or '기타'] += 1
+        name = r.get('품목명') or ''
+        comp = r.get('업소명') or ''
+        cat = r.get('카테고리') or '기타'
+
+        if comp:
+            company[comp] += 1
+            company_items[comp].append([name, cat])
+        category[cat] += 1
+        category_items[cat].append([name, comp])
 
         if kind == 'health':
-            for ing in _extract_health_ingredients(r.get('주된기능성', '')):
-                ingredient[ing] += 1
+            ings = _extract_health_ingredients(r.get('주된기능성', ''))
         else:
-            for ing in _extract_general_ingredients(r.get('원재료명', '')):
-                ingredient[ing] += 1
+            ings = _extract_general_ingredients(r.get('원재료명', ''))
+        for ing in ings:
+            ingredient[ing] += 1
+            ingredient_items[ing].append([name, comp])
 
-    return {'total': len(records), 'company': company, 'category': category, 'ingredient': ingredient}
+    return {
+        'total': len(records), 'company': company, 'category': category, 'ingredient': ingredient,
+        'category_items': category_items, 'ingredient_items': ingredient_items, 'company_items': company_items,
+    }
 
 
 def _rank_map(counter):
@@ -232,7 +259,13 @@ def _trending_ingredients(curr_counter, prev_counter):
 
 
 def _finalize(raw, prev_raw):
-    """_raw_aggregate 결과를 JSON 직렬화 가능한 랭킹 payload로 변환 (전월 비교 포함)."""
+    """_raw_aggregate 결과를 JSON 직렬화 가능한 랭킹 payload(집계 수치만)로 변환.
+
+    2026-09-18: 실제 품목 리스트(드릴다운용)는 용량이 커서(누적 기준 ~2MB) 메인 페이로드에
+    안 넣고 `_finalize_items()`로 분리해 별도 `*_items.json`에 저장 — 모바일에서 페이지 첫
+    로드 시 무거운 품목 리스트까지 매번 받지 않고, 사용자가 실제로 드릴다운을 열 때만
+    지연 로딩(lazy fetch)하기 위함.
+    """
     company, category, ingredient = raw['company'], raw['category'], raw['ingredient']
     prev_category = prev_raw['category'] if prev_raw else None
     prev_ingredient = prev_raw['ingredient'] if prev_raw else None
@@ -257,6 +290,18 @@ def _finalize(raw, prev_raw):
     }
 
 
+def _finalize_items(raw):
+    """드릴다운 모달용 실제 품목 리스트. 화면에 표시되는 상위 항목(카테고리 전체,
+    원재료·업소 TOP N)에 대해서만 담아 용량을 제한한다."""
+    category_top = raw['category'].most_common()
+    ingredient_top = raw['ingredient'].most_common(TOP_N)
+    return {
+        'company_watchlist_items': _watchlist_items(raw['company_items']),
+        'category_items': {name: raw['category_items'].get(name, []) for name, _ in category_top},
+        'ingredient_items': {name: raw['ingredient_items'].get(name, []) for name, _ in ingredient_top},
+    }
+
+
 def _build_month_payload(raw_by_kind, prev_raw_by_kind):
     prev_raw_by_kind = prev_raw_by_kind or {}
     return {
@@ -265,11 +310,17 @@ def _build_month_payload(raw_by_kind, prev_raw_by_kind):
     }
 
 
-def _build_cumulative_payload(records_by_sheet):
-    # 누적은 "전월"이라는 비교 대상이 없으므로 delta/trending 없이 기존과 동일하게 생성
+def _build_items_payload(raw_by_kind):
     return {
-        'health': _finalize(_raw_aggregate(records_by_sheet['건강기능식품'], 'health'), None),
-        'general': _finalize(_raw_aggregate(records_by_sheet['일반식품'], 'general'), None),
+        'health': _finalize_items(raw_by_kind['health']),
+        'general': _finalize_items(raw_by_kind['general']),
+    }
+
+
+def _build_cumulative_raw(records_by_sheet):
+    return {
+        'health': _raw_aggregate(records_by_sheet['건강기능식품'], 'health'),
+        'general': _raw_aggregate(records_by_sheet['일반식품'], 'general'),
     }
 
 
@@ -316,14 +367,24 @@ def build():
         payload = _build_month_payload(raw_by_month[i], prev_raw)
         with open(os.path.join(DATA_DIR, f'{month}.json'), 'w', encoding='utf-8') as f:
             json.dump(payload, f, ensure_ascii=False, indent=2)
+        items_payload = _build_items_payload(raw_by_month[i])
+        with open(os.path.join(DATA_DIR, f'{month}_items.json'), 'w', encoding='utf-8') as f:
+            json.dump(items_payload, f, ensure_ascii=False, indent=2)
         print(f'{month}.json 생성 완료 (건기식 {payload["health"]["total"]}건 / 일반 {payload["general"]["total"]}건)')
 
-    cumulative_payload = _build_cumulative_payload({
+    cumulative_raw = _build_cumulative_raw({
         '건강기능식품': list(cumulative_health.values()),
         '일반식품': list(cumulative_general.values()),
     })
+    cumulative_payload = {
+        'health': _finalize(cumulative_raw['health'], None),
+        'general': _finalize(cumulative_raw['general'], None),
+    }
     with open(os.path.join(DATA_DIR, 'cumulative.json'), 'w', encoding='utf-8') as f:
         json.dump(cumulative_payload, f, ensure_ascii=False, indent=2)
+    cumulative_items_payload = _build_items_payload(cumulative_raw)
+    with open(os.path.join(DATA_DIR, 'cumulative_items.json'), 'w', encoding='utf-8') as f:
+        json.dump(cumulative_items_payload, f, ensure_ascii=False, indent=2)
     print(f'cumulative.json 생성 완료 (건기식 {len(cumulative_health)}건 / 일반 {len(cumulative_general)}건, 품목제조번호 기준 중복제거)')
 
     with open(os.path.join(DATA_DIR, 'months.json'), 'w', encoding='utf-8') as f:

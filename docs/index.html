@@ -59,8 +59,57 @@
 
   .empty { color: #565d66; font-size: 0.85rem; text-align: center; padding: 20px 0; }
 
+  tr[data-drill] { cursor: pointer; }
+  tr[data-drill]:hover .name { color: #fcd535; }
+
+  .skel-bar { height: 18px; border-radius: 4px; background: linear-gradient(90deg, #1c2129 25%, #262b33 37%, #1c2129 63%);
+              background-size: 400% 100%; animation: skel-pulse 1.4s ease infinite; }
+  @keyframes skel-pulse { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
+
+  .modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 50;
+                     align-items: center; justify-content: center; padding: 20px; }
+  .modal-backdrop.open { display: flex; }
+  .modal { background: #171b21; border: 1px solid #262b33; border-radius: 16px; max-width: 560px; width: 100%;
+           max-height: 80vh; display: flex; flex-direction: column; }
+  .modal-header { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 18px 20px 10px; }
+  .modal-header h3 { margin: 0; font-size: 1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .modal-close { background: none; border: none; color: #909aa4; font-size: 1.4rem; cursor: pointer; line-height: 1; padding: 4px 6px; flex: none; }
+  .modal-search { margin: 0 20px 10px; }
+  .modal-search input { width: 100%; background: #0f1216; border: 1px solid #262b33; border-radius: 8px;
+                         padding: 9px 12px; color: #e9ecef; font-family: inherit; font-size: 0.85rem; box-sizing: border-box; }
+  .modal-list { overflow-y: auto; padding: 0 20px 20px; flex: 1; }
+  .modal-item { padding: 8px 0; border-bottom: 1px solid #1c2129; font-size: 0.85rem; }
+  .modal-item .m-name { display: block; }
+  .modal-item .m-company { display: block; color: #707a8a; font-size: 0.75rem; margin-top: 2px; }
+  .modal-empty { color: #565d66; text-align: center; padding: 30px 0; font-size: 0.85rem; }
+
   footer { text-align: center; color: #565d66; font-size: 0.78rem; padding: 24px; }
   footer .credit { display: block; margin-top: 4px; font-size: 0.7rem; color: #3d4249; }
+
+  @media (max-width: 480px) {
+    .hero { padding: 28px 16px 16px; }
+    .hero h1 { font-size: 1.32rem; }
+    .hero p { font-size: 0.78rem; }
+    .controls { padding: 0 16px 8px; gap: 8px; flex-direction: column; align-items: stretch; }
+    .controls select { width: 100%; }
+    .kind-toggle { justify-content: stretch; }
+    .kind-toggle button { flex: 1; padding: 8px 6px; font-size: 0.82rem; white-space: nowrap; }
+    .totals { font-size: 0.76rem; }
+    .cards { padding: 0 16px 16px; gap: 14px; }
+    .cards-row2 { padding: 0 16px 32px; }
+    .card { padding: 16px; }
+    .card-header { font-size: 0.92rem; }
+    td { font-size: 0.8rem; }
+    td.name { max-width: 96px; padding-right: 6px; }
+    td.bar-cell { width: 36%; }
+    .bar { font-size: 10px; padding: 1px 4px; }
+    td.delta { width: 36px; font-size: 0.68rem; }
+    .trend-item { font-size: 0.8rem; }
+    .trend-item .t-count { width: 44px; }
+    .trend-item .t-delta { width: 54px; }
+    .modal-backdrop { padding: 0; align-items: flex-end; }
+    .modal { max-height: 86vh; border-radius: 16px 16px 0 0; }
+  }
 </style>
 </head>
 <body>
@@ -87,11 +136,26 @@
   <span class="credit">이우찬</span>
 </footer>
 
+<div class="modal-backdrop" id="modal-backdrop">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modal-title"></h3>
+      <button class="modal-close" id="modal-close" aria-label="닫기">&times;</button>
+    </div>
+    <div class="modal-search"><input type="text" id="modal-search-input" placeholder="품목명·업소명 검색"></div>
+    <div class="modal-list" id="modal-list"></div>
+  </div>
+</div>
+
 <script>
 const RANK_COLORS = ['#fcd535', '#f0b90b', '#eaecef', '#929aa5', '#707a8a'];
 
 function rankColor(i) {
   return RANK_COLORS[Math.min(i, RANK_COLORS.length - 1)];
+}
+
+function escAttr(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 }
 
 // 순위 변동 배지: 상승은 초록 ▲n, 하락은 빨강 ▼n, 신규는 노란 NEW, 변동없음/비교불가는 빈칸
@@ -115,9 +179,10 @@ function renderBarTable(rows, limit, opts) {
     const pct = Math.max((count / max) * 100, 8);
     const deltaCol = opts.deltaMap || opts.newList
       ? `<td class="delta">${deltaBadge(name, opts.deltaMap, opts.newList)}</td>` : '';
-    return `<tr>
+    const drillAttr = opts.drill ? ` data-drill="${opts.drill}" data-name="${escAttr(name)}"` : '';
+    return `<tr${drillAttr}>
       <td class="rank">${i + 1}</td>
-      <td class="name" title="${name}">${name}</td>
+      <td class="name" title="${escAttr(name)}">${name}</td>
       <td class="bar-cell"><div class="bar" style="width:${pct}%;background:${rankColor(i)}">${count}</div></td>
       ${deltaCol}
     </tr>`;
@@ -147,20 +212,20 @@ function renderCards(data, kind) {
   cardsEl.innerHTML = `
     <div class="card">
       <div class="card-header">🏭 지정 제조사별 신고건수</div>
-      <div class="card-note">동일 계열 공장(예: OO(주) 세종3공장/음성공장)은 한 회사로 합산</div>
-      ${renderBarTable(data.company_watchlist, 20)}
+      <div class="card-note">동일 계열 공장(예: OO(주) 세종3공장/음성공장)은 한 회사로 합산 · 클릭하면 신고 품목 목록을 볼 수 있습니다</div>
+      ${renderBarTable(data.company_watchlist, 20, { drill: 'company' })}
     </div>
     <div class="card">
       <div class="card-header">🗂 카테고리별 신고건수</div>
-      <div class="card-note">기능성/용도 키워드 기반 자동 분류 카테고리 순위 · 우측은 전월 대비 순위 변동</div>
-      ${renderBarTable(data.category, 15, { deltaMap: data.category_delta, newList: data.category_new })}
+      <div class="card-note">기능성/용도 키워드 기반 자동 분류 카테고리 순위 · 우측은 전월 대비 순위 변동 · 클릭하면 해당 품목 목록을 볼 수 있습니다. "기타"는 자동분류 키워드에 걸리지 않은 품목으로, 계속 정교화 중입니다</div>
+      ${renderBarTable(data.category, 15, { deltaMap: data.category_delta, newList: data.category_new, drill: 'category' })}
     </div>
     <div class="card">
       <div class="card-header">🧪 원재료·기능성 성분별 TOP10</div>
       <div class="card-note">${kind === 'health'
         ? '주된기능성 표시사항에 태깅된 기능성 원료 기준'
-        : '원재료명 기준, 정제수·부형제·감미료 등 범용 성분은 제외'} · 전월 대비 순위 변동 표시</div>
-      ${renderBarTable(data.ingredient, 10, { deltaMap: data.ingredient_delta, newList: data.ingredient_new })}
+        : '원재료명 기준, 정제수·부형제·감미료 등 범용 성분은 제외'} · 전월 대비 순위 변동 · 클릭하면 해당 품목 목록을 볼 수 있습니다</div>
+      ${renderBarTable(data.ingredient, 10, { deltaMap: data.ingredient_delta, newList: data.ingredient_new, drill: 'ingredient' })}
     </div>
   `;
 
@@ -180,6 +245,21 @@ function renderTotals(payload) {
     `건강기능식품 <b>${h.toLocaleString()}</b>건 · 일반식품 <b>${g.toLocaleString()}</b>건`;
 }
 
+function renderSkeleton() {
+  const skelCard = (title, note) => `<div class="card">
+    <div class="card-header">${title}</div>
+    <div class="card-note">${note}</div>
+    <table><tbody>${Array.from({ length: 6 }).map(() =>
+      '<tr><td colspan="3" style="padding:4px 0"><div class="skel-bar"></div></td></tr>').join('')}</tbody></table>
+  </div>`;
+  document.getElementById('cards').innerHTML =
+    skelCard('🏭 지정 제조사별 신고건수', ' ') +
+    skelCard('🗂 카테고리별 신고건수', ' ') +
+    skelCard('🧪 원재료·기능성 성분별 TOP10', ' ');
+  document.getElementById('cards-row2').innerHTML = skelCard('🔥 급상승 원재료 (전월 대비)', ' ');
+  document.getElementById('totals').textContent = '불러오는 중…';
+}
+
 let currentPayload = null;
 
 function applyKind(kind) {
@@ -190,10 +270,70 @@ function applyKind(kind) {
 }
 
 async function loadMonth(month) {
+  renderSkeleton();
   const res = await fetch(`data/${month}.json`);
   currentPayload = await res.json();
   renderTotals(currentPayload);
   applyKind(window.__currentKind || 'health');
+}
+
+// ---- 드릴다운 모달 (카드 행 클릭 시 실제 품목 리스트) ----
+// items 파일은 카운트 파일과 달리 용량이 커서(누적 기준 최대 ~2MB) 모달을 처음 열 때만
+// 지연 로딩하고, 같은 월 선택값으로는 캐시를 재사용한다.
+const itemsCache = {};
+
+async function fetchItems(monthValue) {
+  if (itemsCache[monthValue]) return itemsCache[monthValue];
+  const res = await fetch(`data/${monthValue}_items.json`);
+  const data = await res.json();
+  itemsCache[monthValue] = data;
+  return data;
+}
+
+let modalItems = [];
+
+function paintModalList(list) {
+  const el = document.getElementById('modal-list');
+  if (!list.length) {
+    el.innerHTML = '<div class="modal-empty">해당하는 품목이 없습니다</div>';
+    return;
+  }
+  el.innerHTML = list.map(([name, extra]) => `
+    <div class="modal-item">
+      <span class="m-name">${name || '(품목명 미상)'}</span>
+      <span class="m-company">${extra || ''}</span>
+    </div>`).join('');
+}
+
+function openModal(title) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-search-input').value = '';
+  document.getElementById('modal-list').innerHTML = '<div class="modal-empty">불러오는 중…</div>';
+  document.getElementById('modal-backdrop').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modal-backdrop').classList.remove('open');
+}
+
+async function openDrill(drillType, name) {
+  openModal(name);
+  const monthValue = document.getElementById('month-select').value;
+  let list = [];
+  try {
+    const itemsAll = await fetchItems(monthValue);
+    const kindBlock = (itemsAll && itemsAll[window.__currentKind]) || {};
+    const map = drillType === 'category' ? kindBlock.category_items
+      : drillType === 'ingredient' ? kindBlock.ingredient_items
+      : kindBlock.company_watchlist_items;
+    list = (map && map[name]) || [];
+  } catch (e) {
+    document.getElementById('modal-list').innerHTML = '<div class="modal-empty">품목 목록을 불러오지 못했습니다</div>';
+    return;
+  }
+  modalItems = list;
+  document.getElementById('modal-title').textContent = `${name} (${list.length}건)`;
+  paintModalList(list);
 }
 
 async function init() {
@@ -215,6 +355,24 @@ async function init() {
 
   document.getElementById('btn-health').addEventListener('click', () => applyKind('health'));
   document.getElementById('btn-general').addEventListener('click', () => applyKind('general'));
+
+  document.getElementById('cards').addEventListener('click', (e) => {
+    const tr = e.target.closest('tr[data-drill]');
+    if (tr) openDrill(tr.dataset.drill, tr.dataset.name);
+  });
+  document.getElementById('modal-close').addEventListener('click', closeModal);
+  document.getElementById('modal-backdrop').addEventListener('click', (e) => {
+    if (e.target.id === 'modal-backdrop') closeModal();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeModal();
+  });
+  document.getElementById('modal-search-input').addEventListener('input', (e) => {
+    const q = e.target.value.trim().toLowerCase();
+    const filtered = !q ? modalItems : modalItems.filter(([n, c]) =>
+      (n || '').toLowerCase().includes(q) || (c || '').toLowerCase().includes(q));
+    paintModalList(filtered);
+  });
 
   window.__currentKind = 'health';
   loadMonth('cumulative');
