@@ -4,8 +4,9 @@
 fetch()로 이 JSON을 읽어 랭킹을 렌더링합니다.
 
 2026-09-18 추가: 월별 파일에는 전월 대비 카테고리·원재료 순위 변동(rank delta)과 급상승
-원재료 목록을, 별도 trend.json에는 카테고리별 월간 추이(스파크라인용 시계열)를 함께 생성합니다.
-누적(cumulative.json)은 "전월"에 대응하는 개념이 없어 이 필드들을 생성하지 않습니다.
+원재료 목록을 함께 생성합니다. 누적(cumulative.json)은 "전월"에 대응하는 개념이 없어 이
+필드들을 생성하지 않습니다. (카테고리 월간 추이 스파크라인은 같은 날 UI에서 제거되어
+trend.json 생성도 함께 중단했습니다.)
 """
 
 import glob
@@ -15,8 +16,6 @@ import re
 from collections import Counter
 
 from openpyxl import load_workbook
-
-from category_mapper import HEALTH_CAT_LIST, GENERAL_CAT_LIST
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUTPUT_DIR = os.path.join(ROOT_DIR, 'output')
@@ -226,19 +225,6 @@ def _build_cumulative_payload(records_by_sheet):
     }
 
 
-def _build_trend(months, raw_by_month):
-    """카테고리별 월간 추이(스파크라인용). 고정 카테고리 목록 기준으로 0건도 채워 넣어
-    모든 달의 배열 길이를 맞춘다."""
-    trend = {'months': months}
-    for kind, cat_list in (('health', HEALTH_CAT_LIST), ('general', GENERAL_CAT_LIST)):
-        names = list(cat_list) + ['기타']
-        trend[kind] = {
-            name: [raw_by_month[i][kind]['category'].get(name, 0) for i in range(len(months))]
-            for name in names
-        }
-    return trend
-
-
 def build():
     os.makedirs(DATA_DIR, exist_ok=True)
 
@@ -294,11 +280,6 @@ def build():
 
     with open(os.path.join(DATA_DIR, 'months.json'), 'w', encoding='utf-8') as f:
         json.dump(months, f, ensure_ascii=False, indent=2)
-
-    trend = _build_trend(months, raw_by_month)
-    with open(os.path.join(DATA_DIR, 'trend.json'), 'w', encoding='utf-8') as f:
-        json.dump(trend, f, ensure_ascii=False, indent=2)
-    print('trend.json 생성 완료 (카테고리별 월간 추이)')
 
 
 if __name__ == '__main__':
