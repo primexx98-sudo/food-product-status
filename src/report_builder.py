@@ -2,6 +2,10 @@
 
 월별 파일 + 전체 누적(cumulative) 두 종류를 만듭니다. 정적 페이지(docs/index.html)가
 fetch()로 이 JSON을 읽어 랭킹을 렌더링합니다.
+
+2026-09-18 추가: 월별 파일에는 전월 대비 카테고리·원재료 순위 변동(rank delta)과 급상승
+원재료 목록을, 별도 trend.json에는 카테고리별 월간 추이(스파크라인용 시계열)를 함께 생성합니다.
+누적(cumulative.json)은 "전월"에 대응하는 개념이 없어 이 필드들을 생성하지 않습니다.
 """
 
 import glob
@@ -12,11 +16,16 @@ from collections import Counter
 
 from openpyxl import load_workbook
 
+from category_mapper import HEALTH_CAT_LIST, GENERAL_CAT_LIST
+
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUTPUT_DIR = os.path.join(ROOT_DIR, 'output')
 DATA_DIR = os.path.join(ROOT_DIR, 'docs', 'data')
 
 TOP_N = 20
+TRENDING_LIMIT = 8
+# 1~2건짜리 등락까지 "급상승"으로 띄우면 노이즈라 최소 건수 기준을 둠
+TRENDING_MIN_COUNT = 3
 
 # 일반식품 원재료명은 부형제·감미료·용매 등 범용 성분이 섞여 있어 그대로 세면
 # "정제수/이산화규소" 같은 게 상위권을 차지함 — 신제품 기획에 의미 없는 성분은 제외.
@@ -115,8 +124,8 @@ def _read_month_file(fpath):
     return result
 
 
-def _aggregate(records, kind):
-    """kind: 'health' 또는 'general'"""
+def _raw_aggregate(records, kind):
+    """kind: 'health' 또는 'general'. 잘라내기 전 전체 Counter를 반환 (전월 대비 비교용)."""
     company = Counter()
     category = Counter()
     ingredient = Counter()
@@ -133,20 +142,101 @@ def _aggregate(records, kind):
             for ing in _extract_general_ingredients(r.get('원재료명', '')):
                 ingredient[ing] += 1
 
+    return {'total': len(records), 'company': company, 'category': category, 'ingredient': ingredient}
+
+
+def _rank_map(counter):
+    return {name: i for i, (name, _) in enumerate(counter.most_common())}
+
+
+def _rank_deltas(curr_counter, prev_counter, top_items):
+    """top_items 중 전월에도 있던 항목은 순위 변동(양수=상승)을, 전월에 없던 항목은
+    new_list에 담아 반환. prev_counter가 None이면(수집 첫 달) 둘 다 비워 반환한다."""
+    if prev_counter is None:
+        return {}, []
+    curr_rank = _rank_map(curr_counter)
+    prev_rank = _rank_map(prev_counter)
+    delta_map = {}
+    new_list = []
+    for name, _ in top_items:
+        if not prev_counter.get(name):
+            new_list.append(name)
+        elif name in curr_rank and name in prev_rank:
+            delta_map[name] = prev_rank[name] - curr_rank[name]
+    return delta_map, new_list
+
+
+def _trending_ingredients(curr_counter, prev_counter):
+    """전월 대비 건수가 급증했거나 이번 달 새로 등장한 원재료 TOP N (노이즈 방지용 최소 건수 적용)."""
+    if prev_counter is None:
+        return []
+    items = []
+    for name, count in curr_counter.items():
+        if count < TRENDING_MIN_COUNT:
+            continue
+        prev_count = prev_counter.get(name, 0)
+        is_new = prev_count == 0
+        delta = count - prev_count
+        if delta <= 0:
+            continue
+        items.append({'name': name, 'count': count, 'count_delta': delta, 'is_new': is_new})
+    items.sort(key=lambda x: (x['is_new'], x['count_delta']), reverse=True)
+    return items[:TRENDING_LIMIT]
+
+
+def _finalize(raw, prev_raw):
+    """_raw_aggregate 결과를 JSON 직렬화 가능한 랭킹 payload로 변환 (전월 비교 포함)."""
+    company, category, ingredient = raw['company'], raw['category'], raw['ingredient']
+    prev_category = prev_raw['category'] if prev_raw else None
+    prev_ingredient = prev_raw['ingredient'] if prev_raw else None
+
+    category_top = category.most_common()
+    ingredient_top = ingredient.most_common(TOP_N)
+
+    category_delta, category_new = _rank_deltas(category, prev_category, category_top)
+    ingredient_delta, ingredient_new = _rank_deltas(ingredient, prev_ingredient, ingredient_top)
+
     return {
-        'total': len(records),
+        'total': raw['total'],
         'company': company.most_common(TOP_N),
         'company_watchlist': _watchlist_counts(company),
-        'category': category.most_common(),
-        'ingredient': ingredient.most_common(TOP_N),
+        'category': category_top,
+        'category_delta': category_delta,
+        'category_new': category_new,
+        'ingredient': ingredient_top,
+        'ingredient_delta': ingredient_delta,
+        'ingredient_new': ingredient_new,
+        'ingredient_trending': _trending_ingredients(ingredient, prev_ingredient),
     }
 
 
-def _build_month_payload(records_by_sheet):
+def _build_month_payload(raw_by_kind, prev_raw_by_kind):
+    prev_raw_by_kind = prev_raw_by_kind or {}
     return {
-        'health': _aggregate(records_by_sheet['건강기능식품'], 'health'),
-        'general': _aggregate(records_by_sheet['일반식품'], 'general'),
+        'health': _finalize(raw_by_kind['health'], prev_raw_by_kind.get('health')),
+        'general': _finalize(raw_by_kind['general'], prev_raw_by_kind.get('general')),
     }
+
+
+def _build_cumulative_payload(records_by_sheet):
+    # 누적은 "전월"이라는 비교 대상이 없으므로 delta/trending 없이 기존과 동일하게 생성
+    return {
+        'health': _finalize(_raw_aggregate(records_by_sheet['건강기능식품'], 'health'), None),
+        'general': _finalize(_raw_aggregate(records_by_sheet['일반식품'], 'general'), None),
+    }
+
+
+def _build_trend(months, raw_by_month):
+    """카테고리별 월간 추이(스파크라인용). 고정 카테고리 목록 기준으로 0건도 채워 넣어
+    모든 달의 배열 길이를 맞춘다."""
+    trend = {'months': months}
+    for kind, cat_list in (('health', HEALTH_CAT_LIST), ('general', GENERAL_CAT_LIST)):
+        names = list(cat_list) + ['기타']
+        trend[kind] = {
+            name: [raw_by_month[i][kind]['category'].get(name, 0) for i in range(len(months))]
+            for name in names
+        }
+    return trend
 
 
 def build():
@@ -159,6 +249,7 @@ def build():
         return
 
     months = []
+    raw_by_month = []
     cumulative_health = {}  # 품목제조번호 -> record (최신 파일이 덮어씀)
     cumulative_general = {}
 
@@ -172,9 +263,10 @@ def build():
             continue
 
         months.append(month)
-        with open(os.path.join(DATA_DIR, f'{month}.json'), 'w', encoding='utf-8') as f:
-            json.dump(_build_month_payload(data), f, ensure_ascii=False, indent=2)
-        print(f'{month}.json 생성 완료 (건기식 {len(data["건강기능식품"])}건 / 일반 {len(data["일반식품"])}건)')
+        raw_by_month.append({
+            'health': _raw_aggregate(data['건강기능식품'], 'health'),
+            'general': _raw_aggregate(data['일반식품'], 'general'),
+        })
 
         for r in data['건강기능식품']:
             key = r.get('품목제조번호')
@@ -185,7 +277,14 @@ def build():
             if key:
                 cumulative_general[key] = r
 
-    cumulative_payload = _build_month_payload({
+    for i, month in enumerate(months):
+        prev_raw = raw_by_month[i - 1] if i > 0 else None
+        payload = _build_month_payload(raw_by_month[i], prev_raw)
+        with open(os.path.join(DATA_DIR, f'{month}.json'), 'w', encoding='utf-8') as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+        print(f'{month}.json 생성 완료 (건기식 {payload["health"]["total"]}건 / 일반 {payload["general"]["total"]}건)')
+
+    cumulative_payload = _build_cumulative_payload({
         '건강기능식품': list(cumulative_health.values()),
         '일반식품': list(cumulative_general.values()),
     })
@@ -195,6 +294,11 @@ def build():
 
     with open(os.path.join(DATA_DIR, 'months.json'), 'w', encoding='utf-8') as f:
         json.dump(months, f, ensure_ascii=False, indent=2)
+
+    trend = _build_trend(months, raw_by_month)
+    with open(os.path.join(DATA_DIR, 'trend.json'), 'w', encoding='utf-8') as f:
+        json.dump(trend, f, ensure_ascii=False, indent=2)
+    print('trend.json 생성 완료 (카테고리별 월간 추이)')
 
 
 if __name__ == '__main__':

@@ -26,8 +26,10 @@
   .totals { text-align: center; color: #909aa4; font-size: 0.82rem; padding-bottom: 20px; }
   .totals b { color: #e9ecef; }
 
-  .cards { max-width: 1200px; margin: 0 auto; padding: 0 24px 48px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .cards { max-width: 1200px; margin: 0 auto; padding: 0 24px 20px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
   @media (max-width: 1000px) { .cards { grid-template-columns: 1fr; } }
+
+  .cards-row2 { max-width: 1200px; margin: 0 auto; padding: 0 24px 48px; display: grid; grid-template-columns: 1fr; gap: 20px; }
 
   .card { background: #171b21; border: 1px solid #262b33; border-radius: 16px; padding: 22px; }
   .card-header { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 1rem; margin-bottom: 4px; }
@@ -37,10 +39,24 @@
   td { padding: 5px 0; font-size: 0.86rem; vertical-align: middle; }
   td.rank { width: 26px; padding-right: 6px; color: #909aa4; font-size: 0.82rem; text-align: right; }
   td.name { padding-right: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
-  td.bar-cell { width: 60%; }
+  td.bar-cell { width: 46%; }
   .bar { height: 18px; border-radius: 4px; min-width: 30px; white-space: nowrap;
          color: #0b0e11; font-size: 11px; font-weight: 700; padding: 1px 6px;
          font-family: 'JetBrains Mono', monospace; box-sizing: border-box; display: flex; align-items: center; }
+
+  td.spark { width: 70px; padding: 0 6px; }
+  td.delta { width: 46px; padding-right: 2px; font-size: 0.74rem; font-weight: 700; text-align: right; white-space: nowrap; }
+  .delta-up { color: #52b788; }
+  .delta-down { color: #e5484d; }
+  .delta-flat { color: #565d66; }
+  .delta-new { color: #fcd535; font-size: 0.68rem; font-weight: 700; border: 1px solid #fcd535; border-radius: 4px; padding: 1px 4px; }
+
+  .trend-card .empty { padding: 12px 0; }
+  .trend-list { display: flex; flex-direction: column; gap: 10px; }
+  .trend-item { display: flex; align-items: center; gap: 10px; font-size: 0.86rem; }
+  .trend-item .t-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .trend-item .t-count { color: #909aa4; font-size: 0.78rem; width: 54px; text-align: right; }
+  .trend-item .t-delta { width: 70px; text-align: right; font-weight: 700; font-size: 0.8rem; }
 
   .empty { color: #565d66; font-size: 0.85rem; text-align: center; padding: 20px 0; }
 
@@ -65,6 +81,7 @@
 <div class="totals" id="totals"></div>
 
 <div class="cards" id="cards"></div>
+<div class="cards-row2" id="cards-row2"></div>
 
 <footer>
   매일 20:00 (KST) 자동 수집 · food-product-status
@@ -78,7 +95,38 @@ function rankColor(i) {
   return RANK_COLORS[Math.min(i, RANK_COLORS.length - 1)];
 }
 
-function renderBarTable(rows, limit) {
+// 순위 변동 배지: 상승은 초록 ▲n, 하락은 빨강 ▼n, 신규는 노란 NEW, 변동없음/비교불가는 빈칸
+function deltaBadge(name, deltaMap, newList) {
+  if (newList && newList.includes(name)) return '<span class="delta-new">NEW</span>';
+  if (!deltaMap || !(name in deltaMap)) return '';
+  const d = deltaMap[name];
+  if (d > 0) return `<span class="delta-up">▲${d}</span>`;
+  if (d < 0) return `<span class="delta-down">▼${-d}</span>`;
+  return '<span class="delta-flat">-</span>';
+}
+
+// 카테고리 스파크라인: trend.json의 월별 건수 배열을 작은 SVG 꺾은선으로 렌더링
+function sparklineSvg(series) {
+  if (!series || series.length < 2) return '';
+  const w = 60, h = 20, pad = 2;
+  const max = Math.max(...series, 1);
+  const min = Math.min(...series, 0);
+  const range = Math.max(max - min, 1);
+  const step = (w - pad * 2) / (series.length - 1);
+  const pts = series.map((v, i) => {
+    const x = pad + i * step;
+    const y = h - pad - ((v - min) / range) * (h - pad * 2);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+  const rising = series[series.length - 1] >= series[0];
+  const color = rising ? '#52b788' : '#e5484d';
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+    <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>
+  </svg>`;
+}
+
+function renderBarTable(rows, limit, opts) {
+  opts = opts || {};
   if (!rows || rows.length === 0) {
     return '<div class="empty">데이터 없음</div>';
   }
@@ -86,17 +134,40 @@ function renderBarTable(rows, limit) {
   const max = items[0][1] || 1;
   const trs = items.map(([name, count], i) => {
     const pct = Math.max((count / max) * 100, 8);
+    const sparkCol = opts.trendMap
+      ? `<td class="spark">${sparklineSvg(opts.trendMap[name])}</td>` : '';
+    const deltaCol = opts.deltaMap || opts.newList
+      ? `<td class="delta">${deltaBadge(name, opts.deltaMap, opts.newList)}</td>` : '';
     return `<tr>
       <td class="rank">${i + 1}</td>
       <td class="name" title="${name}">${name}</td>
       <td class="bar-cell"><div class="bar" style="width:${pct}%;background:${rankColor(i)}">${count}</div></td>
+      ${sparkCol}${deltaCol}
     </tr>`;
   }).join('');
   return `<table><tbody>${trs}</tbody></table>`;
 }
 
-function renderCards(data) {
+function renderTrending(rows) {
+  if (!rows || rows.length === 0) {
+    return '<div class="empty">전월 대비 급상승 원재료가 없습니다 (또는 첫 달이라 비교 불가)</div>';
+  }
+  const items = rows.map(r => {
+    const deltaTxt = r.is_new
+      ? '<span class="delta-new">NEW</span>'
+      : `<span class="delta-up">▲${r.count_delta}</span>`;
+    return `<div class="trend-item">
+      <span class="t-name" title="${r.name}">${r.name}</span>
+      <span class="t-count">${r.count}건</span>
+      <span class="t-delta">${deltaTxt}</span>
+    </div>`;
+  }).join('');
+  return `<div class="trend-list">${items}</div>`;
+}
+
+function renderCards(data, kind) {
   const cardsEl = document.getElementById('cards');
+  const catTrend = window.__trend ? window.__trend[kind] : null;
   cardsEl.innerHTML = `
     <div class="card">
       <div class="card-header">🏭 지정 제조사별 신고건수</div>
@@ -105,15 +176,24 @@ function renderCards(data) {
     </div>
     <div class="card">
       <div class="card-header">🗂 카테고리별 신고건수</div>
-      <div class="card-note">기능성/용도 키워드 기반 자동 분류 카테고리 순위</div>
-      ${renderBarTable(data.category, 15)}
+      <div class="card-note">기능성/용도 키워드 기반 자동 분류 카테고리 순위 · 우측은 ${window.__trend ? window.__trend.months.length : ''}개월 추이 그래프와 전월 대비 순위 변동</div>
+      ${renderBarTable(data.category, 15, { trendMap: catTrend, deltaMap: data.category_delta, newList: data.category_new })}
     </div>
     <div class="card">
       <div class="card-header">🧪 원재료·기능성 성분별 TOP10</div>
-      <div class="card-note">${window.__currentKind === 'health'
+      <div class="card-note">${kind === 'health'
         ? '주된기능성 표시사항에 태깅된 기능성 원료 기준'
-        : '원재료명 기준, 정제수·부형제·감미료 등 범용 성분은 제외'}</div>
-      ${renderBarTable(data.ingredient, 10)}
+        : '원재료명 기준, 정제수·부형제·감미료 등 범용 성분은 제외'} · 전월 대비 순위 변동 표시</div>
+      ${renderBarTable(data.ingredient, 10, { deltaMap: data.ingredient_delta, newList: data.ingredient_new })}
+    </div>
+  `;
+
+  const row2El = document.getElementById('cards-row2');
+  row2El.innerHTML = `
+    <div class="card trend-card">
+      <div class="card-header">🔥 급상승 원재료 (전월 대비)</div>
+      <div class="card-note">신규 등장(NEW) 또는 건수가 늘어난 원재료만, 최소 ${window.__TRENDING_MIN_COUNT || 3}건 이상 · "전체 누적" 선택 시에는 비교 대상이 없어 표시되지 않습니다</div>
+      ${renderTrending(data.ingredient_trending)}
     </div>
   `;
 }
@@ -130,7 +210,7 @@ function applyKind(kind) {
   window.__currentKind = kind;
   document.getElementById('btn-health').classList.toggle('active', kind === 'health');
   document.getElementById('btn-general').classList.toggle('active', kind === 'general');
-  if (currentPayload) renderCards(currentPayload[kind]);
+  if (currentPayload) renderCards(currentPayload[kind], kind);
 }
 
 async function loadMonth(month) {
@@ -142,6 +222,12 @@ async function loadMonth(month) {
 
 async function init() {
   const months = await (await fetch('data/months.json')).json();
+  try {
+    window.__trend = await (await fetch('data/trend.json')).json();
+  } catch (e) {
+    window.__trend = null;
+  }
+
   const select = document.getElementById('month-select');
   const opt = document.createElement('option');
   opt.value = 'cumulative';

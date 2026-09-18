@@ -259,6 +259,8 @@
         4
       ]
     ],
+    "category_delta": {},
+    "category_new": [],
     "ingredient": [
       [
         "아연",
@@ -301,11 +303,11 @@
         165
       ],
       [
-        "비타민B12",
+        "엽산",
         147
       ],
       [
-        "엽산",
+        "비타민B12",
         147
       ],
       [
@@ -340,7 +342,10 @@
         "프로바이오틱스",
         78
       ]
-    ]
+    ],
+    "ingredient_delta": {},
+    "ingredient_new": [],
+    "ingredient_trending": []
   },
   "general": {
     "total": 6228,
@@ -578,6 +583,8 @@
         3
       ]
     ],
+    "category_delta": {},
+    "category_new": [],
     "ingredient": [
       [
         "비타민C",
@@ -659,6 +666,9 @@
         "비타민B1염산염",
         114
       ]
-    ]
+    ],
+    "ingredient_delta": {},
+    "ingredient_new": [],
+    "ingredient_trending": []
   }
 }

@@ -255,6 +255,8 @@
         1
       ]
     ],
+    "category_delta": {},
+    "category_new": [],
     "ingredient": [
       [
         "아연",
@@ -269,11 +271,11 @@
         102
       ],
       [
-        "비타민B2",
+        "비타민B6",
         96
       ],
       [
-        "비타민B6",
+        "비타민B2",
         96
       ],
       [
@@ -336,7 +338,10 @@
         "셀레늄",
         26
       ]
-    ]
+    ],
+    "ingredient_delta": {},
+    "ingredient_new": [],
+    "ingredient_trending": []
   },
   "general": {
     "total": 1619,
@@ -570,6 +575,8 @@
         10
       ]
     ],
+    "category_delta": {},
+    "category_new": [],
     "ingredient": [
       [
         "비타민C",
@@ -651,6 +658,9 @@
         "작약뿌리",
         36
       ]
-    ]
+    ],
+    "ingredient_delta": {},
+    "ingredient_new": [],
+    "ingredient_trending": []
   }
 }
